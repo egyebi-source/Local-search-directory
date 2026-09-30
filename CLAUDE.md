@@ -39,3 +39,5 @@ The owner of this project is a founder who does **not** write code. That means:
 - All money in integer cents; all timestamps stored in UTC (`timestamptz`).
 - One migration per change; never edit a migration that has been applied to production.
 - Write tests for: tenant isolation, token encryption/decryption, cron auth, and the keyword-gap logic.
+
+@AGENTS.md
