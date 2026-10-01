@@ -1,7 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { auth } from "@/server/auth";
+import { accessState, hasAccess, type AccessState } from "@/server/billing/access";
+import { organizations } from "@/server/db/schema";
 import { NotMemberError, listUserOrganizations, withOrg, type OrgContext, type Tx } from "@/server/db/tenant";
 
 const ORG_COOKIE = "tr_org";
@@ -39,17 +42,38 @@ export async function setCurrentOrgCookie(orgId: string) {
   });
 }
 
-/** Run `fn` in the user's current organization; 404 if not a member. */
+export async function orgAccess(tx: Tx, orgId: string): Promise<AccessState> {
+  const [row] = await tx
+    .select({ planStatus: organizations.planStatus, trialEndsAt: organizations.trialEndsAt })
+    .from(organizations)
+    .where(eq(organizations.id, orgId));
+  return accessState(row);
+}
+
+class OrgLockedError extends Error {}
+
+/**
+ * Run `fn` in the user's current organization. 404 if not a member; sends
+ * a locked org (trial over, unpaid) to /locked before `fn` can read any data.
+ * Pass `{ allowLocked: true }` only for billing, export and deletion.
+ */
 export async function withCurrentOrg<T>(
   fn: (tx: Tx, ctx: OrgContext, user: SessionUser) => Promise<T>,
+  options: { allowLocked?: boolean } = {},
 ): Promise<T> {
   const user = await requireUser();
   const { current } = await currentOrganization(user);
   if (!current) redirect("/onboarding");
   try {
-    return await withOrg(user.id, current.id, (tx, ctx) => fn(tx, ctx, user));
+    return await withOrg(user.id, current.id, async (tx, ctx) => {
+      if (!options.allowLocked && !hasAccess(await orgAccess(tx, ctx.orgId))) {
+        throw new OrgLockedError();
+      }
+      return fn(tx, ctx, user);
+    });
   } catch (err) {
     if (err instanceof NotMemberError) notFound();
+    if (err instanceof OrgLockedError) redirect("/locked");
     throw err;
   }
 }

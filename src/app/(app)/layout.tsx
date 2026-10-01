@@ -2,13 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n/en";
-import { currentOrganization, requireUser } from "@/server/org/current";
+import { withOrg } from "@/server/db/tenant";
+import { currentOrganization, orgAccess, requireUser } from "@/server/org/current";
 import { signOutAction, switchOrgAction } from "./app/actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const { orgs, current } = await currentOrganization(user);
   if (!current) redirect("/onboarding");
+
+  const access = await withOrg(user.id, current.id, (tx) => orgAccess(tx, current.id));
+  if (access.kind === "locked") redirect("/locked");
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -54,7 +58,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </header>
+      {access.kind === "trialing" ? (
+        <div className="border-b border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+          <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">{t.trial.daysLeft(access.daysLeft)}</p>
+        </div>
+      ) : null}
+      {/* Locked orgs never get here: the layout and withCurrentOrg() both send them to /locked. */}
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
     </div>
   );
 }
+

@@ -99,12 +99,34 @@ export const rateLimits = pgTable("rate_limits", {
 export const membershipRole = pgEnum("membership_role", ["owner", "member"]);
 export type MembershipRole = (typeof membershipRole.enumValues)[number];
 
+// Gate questions (PRD §2.1) and trial/billing state (PRD Module 10).
+export const primaryGoal = pgEnum("primary_goal", ["calls", "form_leads", "walk_ins", "lower_ad_spend"]);
+export const adSpendRange = pgEnum("ad_spend_range", [
+  "none",
+  "under_500",
+  "500_2000",
+  "2000_5000",
+  "over_5000",
+]);
+export const websiteManager = pgEnum("website_manager", ["self", "agency", "nobody"]);
+export const planStatus = pgEnum("plan_status", ["trialing", "active", "past_due", "locked"]);
+export type PlanStatus = (typeof planStatus.enumValues)[number];
+
 export const organizations = pgTable("organizations", {
   id: id(),
   name: text("name").notNull(),
   websiteDomain: text("website_domain"),
   serviceArea: text("service_area"),
   category: text("category"),
+  primaryGoal: primaryGoal("primary_goal"),
+  adSpendRange: adSpendRange("ad_spend_range"),
+  websiteManager: websiteManager("website_manager"),
+  planStatus: planStatus("plan_status").notNull().default("trialing"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now() + interval '7 days'`),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  deleteAfter: timestamp("delete_after", { withTimezone: true }),
   createdAt: createdAt(),
 });
 

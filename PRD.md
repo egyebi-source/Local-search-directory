@@ -20,12 +20,26 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 
 ## 2. Users and access levels
 
-1. **Visitor (not signed in).** Can run a free public **Competitor Snapshot** by entering a business website and service area. No Google connection. Rate-limited.
-2. **Member (free account).** Everything a visitor gets, plus can **optionally connect their own Google Search Console and GA4** through Google's consent screen. Connecting Google requires an account because we must store the connection securely under someone's name.
-3. **Org owner.** Manages the organization, invites teammates (e.g., their web agency), connects/disconnects Google, deletes data.
-4. **Platform admin (us).** Views system health and sync failures. **Cannot view customer Google data** except aggregate counts.
+1. **Visitor (not signed in).** Enters a website URL on the home page and gets a **Competitor Snapshot** (assessment) with no sign-up. Part of the result is shown; the rest is locked. No Google connection. Rate-limited.
+2. **Trial member.** Unlocks the full dashboard by passing the **gate**: email sign-in (magic link or Google basic profile) plus four short questions. This starts a **7-day free trial, no card required**. During the trial they can connect Google Search Console and GA4 through Google's consent screen.
+3. **Paying member.** Adds a card for a monthly or annual subscription (Stripe) at any time; the dashboard stays unlocked.
+4. **Org owner.** Manages the organization, invites teammates (e.g., their web agency), connects/disconnects Google, deletes data.
+5. **Platform admin (us).** Views system health and sync failures. **Cannot view customer Google data** except aggregate counts.
 
-### 2.1 How a visitor adds their own Google data
+### 2.1 Visitor journey (assessment first, sign-in later)
+
+1. **Assess.** Home page asks for the website URL (plus service area and business type, pre-filled where possible). The assessment runs immediately — no account.
+2. **Tease.** Results page shows a few headline insights in full; the remaining insights and the dashboard preview are locked. **Locked content is never sent to the browser** (no CSS blur over real data): the server renders placeholders until the account is unlocked.
+3. **Gate.** "Unlock your full dashboard" → email sign-in → four questions:
+   - Business type & service area (pre-filled from the assessment)
+   - Main goal: more phone calls / more form leads / more walk-ins / spend less on ads
+   - Current monthly Google Ads spend: none / under $500 / $500–2,000 / $2,000–5,000 / over $5,000
+   - Who manages the website: me / an agency or freelancer / nobody right now
+   Completing the gate creates the organization, attaches the assessment to it, and **starts the 7-day trial**.
+4. **Complete the picture.** Inside the dashboard, prompts to connect Search Console and GA4 (via Google's consent screen — see below) so organic data is combined with the paid competitor data. If an agency manages the site (gate answer), suggest inviting them.
+5. **Convert or lock.** Trial banner counts down. On day 8 an unpaid dashboard **locks** (data kept, nothing shown) with "Add a card to unlock". 30 days after locking, Google access is revoked and all org data is deleted (Module 10).
+
+### 2.2 How a member adds their own Google data
 
 - The visitor clicks **"Connect your Google data"** → is asked to create a free account (email magic link or Sign in with Google, basic profile only) → lands on the Connect screen → clicks **"Connect Google Search Console & Analytics"** → Google's own consent screen shows exactly which read-only permissions we request → user approves → user picks which Search Console site and which GA4 property to link.
 - The user never types a Google password, API key, or credential file into our app. The UI must say this plainly: *"You'll approve access on Google's own page. We never see your password, and access is read-only."*
@@ -34,7 +48,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 
 ## 3. Goals and non-goals
 
-**Goals (v1):** public snapshot as a lead magnet; secure optional Google connection; daily cached dashboard; keyword-gap "Rescue Targets"; AI action checklist; full self-service disconnect and deletion.
+**Goals (v1):** assessment-first funnel (value before sign-up); 7-day no-card trial with paid monthly/annual plans; secure optional Google connection; daily cached dashboard; keyword-gap "Rescue Targets"; AI action checklist; full self-service disconnect and deletion.
 
 **Non-goals (v1):** managing or editing Google Ads campaigns; writing to GSC/GA4 (read-only only); publishing content to the user's website automatically; white-label agency mode; mobile app.
 
@@ -48,21 +62,24 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - **Cloudflare Turnstile** for bot protection on the public snapshot form.
 - **Resend** for transactional email.
 - **Sentry** for error monitoring (with token/PII scrubbing).
-- **Vercel Cron** for scheduled syncs.
+- **Vercel Cron** for scheduled syncs and trial lock/deletion jobs.
+- **Stripe** (Checkout + Customer Portal + webhooks) for subscriptions. We never see or store card numbers.
 
 ## 5. Functional requirements
 
-### Module 1 — Public Competitor Snapshot (visitors)
+### Module 1 — Public Competitor Snapshot / assessment (visitors, the front door)
+- FR-1.0 The home page **is** the assessment form. Sign-in is not required to run it; a small "Sign in" link serves returning users.
 - FR-1.1 Form: website URL, service area (city/region), business category. Validate and normalize the domain.
 - FR-1.2 Protected by Turnstile + rate limit (e.g., 3 snapshots per IP per day, 50 per day globally on the free tier; values configurable).
 - FR-1.3 Server calls DataForSEO for competitor paid keywords in that area; results cached per `domain + location` for 7 days to control cost.
 - FR-1.4 Gemini produces a 5-item summary. Shareable result page at an unguessable URL (random 22+ char ID), expires after 30 days.
-- FR-1.5 CTA: "Create a free account to connect your Google data."
+- FR-1.5 Results page shows a limited set of insights; the rest is locked behind the gate (§2.1). Locked items are rendered as server-side placeholders; their content is not in the HTML, JSON or RSC payload. CTA: "Unlock your full dashboard — free for 7 days, no card."
+- FR-1.7 On gate completion the snapshot is attached to the new organization (copied into org-scoped tables) so the dashboard opens with it already populated.
 - FR-1.6 Daily DataForSEO and Gemini spend caps; when hit, show a friendly "try again tomorrow" message and alert the admin.
 
-### Module 2 — Accounts and organizations
-- FR-2.1 Sign up/in with email magic link or Google (profile scopes only).
-- FR-2.2 Every user belongs to at least one organization. Roles: `owner`, `member`.
+### Module 2 — Accounts, organizations and the gate
+- FR-2.1 Sign up/in with email magic link or Google (profile scopes only). Sign-in is reached from the gate (with the snapshot id carried through) or the "Sign in" link.
+- FR-2.2 Every user belongs to at least one organization. Roles: `owner`, `member`. A new organization is created by completing the gate questions (§2.1 step 3), all validated with Zod.
 - FR-2.3 Owners can invite by email (expiring, single-use invite tokens stored hashed).
 
 ### Module 3 — Google data connection (OAuth)
@@ -105,6 +122,15 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-8.2 Delete organization: revokes Google tokens, hard-deletes all org data within 30 days (immediately from the app; from backups per Neon retention).
 - FR-8.3 Privacy policy and terms pages linked in the footer and on the consent screen.
 
+### Module 10 — Trial, billing and lifecycle
+- FR-10.1 Trial: 7 days from organization creation (gate completion). No card required. One trial per organization; a user may not start a new trial for the same website domain within 90 days (abuse control).
+- FR-10.2 Status per org: `trialing` → `active` (paid) or `locked` (trial ended unpaid, or payment failed past Stripe's retry period) → `deleted`. `past_due` keeps access during Stripe's retry window.
+- FR-10.3 Plans: monthly and annual (prices TBD by owner). Subscribe via Stripe Checkout; manage/cancel via Stripe Customer Portal. Only owners see billing.
+- FR-10.4 Stripe webhooks are the source of truth for subscription status. Verify every webhook signature; process idempotently (store event ids); never trust plan or price data from the browser.
+- FR-10.5 Locked org: every dashboard page shows only the lock screen and "Add a card to unlock"; data sync stops. Owners can still export or delete their data.
+- FR-10.6 30 days after locking (or immediately on owner request): revoke Google tokens, hard-delete org data (as FR-8.2). Email reminders: trial day 5, day 7, lock day, and 7 days before deletion.
+- FR-10.7 A daily cron applies trial expiry and scheduled deletions; the dashboard also checks status on every request so access never depends on the cron having run.
+
 ### Module 9 — Admin
 - FR-9.1 Admin page (role-gated) showing sync success rates, failing orgs by error code, API spend vs. caps.
 - FR-9.2 No admin view of an org's Google metrics.
@@ -135,7 +161,8 @@ Google user data is used **only** to show the user their own dashboard and gener
 All tenant tables have `org_id` and RLS enabled. All IDs are UUIDv7 unless noted.
 
 - `users` (id, email, name, created_at)
-- `organizations` (id, name, website_domain, service_area, category, created_at)
+- `organizations` (id, name, website_domain, service_area, category, primary_goal, ad_spend_range, website_manager, plan_status [`trialing`|`active`|`past_due`|`locked`], trial_ends_at, locked_at, delete_after, stripe_customer_id, stripe_subscription_id, created_at)
+- `stripe_events` (id = Stripe event id, type, processed_at) — idempotency for webhooks
 - `memberships` (org_id, user_id, role)
 - `invites` (id, org_id, email, token_hash, expires_at, accepted_at)
 - `google_connections` (id, org_id, connected_by_user_id, google_account_email, granted_scopes[], **refresh_token_ciphertext**, token_iv, token_auth_tag, key_version, status [`active`|`needs_reauth`|`revoked`], last_refreshed_at)
@@ -206,6 +233,10 @@ TURNSTILE_SITE_KEY=           # the only value allowed in the browser (as NEXT_P
 TURNSTILE_SECRET_KEY=
 RESEND_API_KEY=
 CRON_SECRET=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_MONTHLY=
+STRIPE_PRICE_ANNUAL=
 SENTRY_DSN=
 DAILY_SPEND_CAP_DATAFORSEO_CENTS=
 DAILY_SPEND_CAP_GEMINI_CENTS=
@@ -240,12 +271,13 @@ tests/
 | Phase | Deliverable | Acceptance checks |
 |---|---|---|
 | 0. Setup | Repo, Next.js, Vercel project, Neon integration, Drizzle, CI (lint, typecheck, tests), `.env.example` | Preview deploy works; CI green; no secrets in git |
-| 1. Auth & orgs | Login, orgs, memberships, invites, RLS + `withOrg` | Tenant-isolation tests pass |
-| 2. Public snapshot | Snapshot form, Turnstile, rate limits, DataForSEO + Gemini, cache, spend caps | Abuse test: 4th request/day blocked; caps enforced |
+| 1. Auth & orgs | Login, orgs, memberships, invites, RLS + `withOrg`, gate questions, trial clock + lock screen | Tenant-isolation tests pass; trial expiry locks the dashboard |
+| 2. Assessment & gate | Home-page assessment, Turnstile, rate limits, DataForSEO + Gemini, cache, spend caps, teaser with server-side locked sections, gate → org + trial, snapshot attached to org | Abuse test: 4th request/day blocked; caps enforced; locked content absent from page source |
 | 3. Google connect | Data OAuth flow, encryption, property picker, disconnect/revoke | Token never appears in logs, responses, or DB plaintext |
 | 4. Sync | Cron, fan-out, backfill, retries, `sync_runs`, reauth handling | Cron without secret → 401; revoked token → `needs_reauth` |
 | 5. Dashboard | Cards, charts, queries table, stale-data banner | Works with GSC only, GA4 only, both, neither |
 | 6. Gaps & AI | Keyword gap scoring, Rescue Targets, checklist | Zod-invalid AI output rejected; injection test string in competitor copy has no effect |
+| 6b. Billing & lifecycle | Stripe Checkout/Portal, webhooks, lock/unlock, reminder emails, 30-day deletion job | Forged webhook rejected; replayed webhook ignored; unpaid org locks on day 8 and is deleted on day 38 (time-travel test) |
 | 7. Hardening & launch | Headers, Sentry, export/delete, privacy policy, Google verification package | Security checklist 100%; verification submitted |
 
 ## 13. Security checklist (run at end of every phase)
@@ -258,9 +290,11 @@ tests/
 - [ ] No `dangerouslySetInnerHTML`
 - [ ] Rate limits exist on any endpoint that costs money or sends email
 - [ ] `npm audit` shows no high/critical issues
+- [ ] Locked/gated content is never sent to the browser (check page source and RSC payload)
+- [ ] Stripe webhooks verify signatures and are idempotent; no card data touches our servers
 
 ## 14. Open questions for the owner
 1. ~~Product name~~ — **TorqueRank** (decided; trademark check by counsel pending). Domains: torquerank.ca (primary) + torquerank.com (available, not yet purchased).
-2. Pricing and whether the free tier limits connected properties.
+2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. **Still open: the monthly and annual prices**, and whether plans differ (e.g., number of locations/properties).
 3. Which email address becomes the Google Cloud and Vercel owner account (should be a company account, not personal, with 2-step verification on).
 4. Legal review of privacy policy and terms before Google verification.
