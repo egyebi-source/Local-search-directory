@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Local Search Growth Dashboard",
+  title: "SEO Max",
   description: "See whether your online presence produces clicks, visits and leads — and what to fix this week.",
 };
 
