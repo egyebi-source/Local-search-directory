@@ -55,8 +55,8 @@ const TRADES = [
 ];
 
 const PLANS = [
-  { name: "Monthly", price: "$49", period: "/month", note: "Billed monthly", highlight: false },
-  { name: "Annual", price: "$490", period: "/year", note: "About $40.83 a month, billed yearly", highlight: true },
+  { name: "Monthly", price: "$49", period: "USD /month", note: "Billed monthly", highlight: false },
+  { name: "Annual", price: "$490", period: "USD /year", note: "About $40.83 USD a month, billed yearly", highlight: true },
 ];
 
 const INCLUDED = [
@@ -229,7 +229,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">Prices in Canadian dollars. Applicable taxes extra.</p>
+        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">Prices in US dollars. Your bank converts to your currency. Applicable taxes extra.</p>
       </section>
 
       {/* Final CTA */}
@@ -239,7 +239,7 @@ export default function Home() {
             See what you&apos;re missing in under a minute
           </h2>
           <p className="mt-4 text-lg text-slate-300">
-            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then $49/month or $490/year.
+            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then $49 USD/month or $490 USD/year.
           </p>
           <WebsiteForm id="cta-website" className="mt-8 max-w-xl" />
         </div>
