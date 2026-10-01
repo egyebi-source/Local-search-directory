@@ -12,7 +12,9 @@ const DAY_MS = 86_400_000;
 const ID = /^[A-Za-z0-9_-]{43}$/;
 
 export function cacheKeyFor(a: Answers): string {
-  return sha256Hex([a.website, a.country, primaryKeyword(a.category, a.serviceArea, a.reach), a.primaryGoal].join("|"));
+  return sha256Hex(
+    [a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
+  );
 }
 
 /** A result for the same site, market and goal from the last 7 days, if any. */

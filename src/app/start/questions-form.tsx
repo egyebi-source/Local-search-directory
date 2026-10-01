@@ -12,15 +12,31 @@ import { saveAnswersAction, type StartState } from "./actions";
 const q = t.start.questions;
 const o = t.onboarding;
 
-function Choices<T extends string>({ name, options, labels }: { name: string; options: readonly T[]; labels: Record<T, string> }) {
+function Choices<T extends string>({
+  name,
+  options,
+  labels,
+  multiple = false,
+}: {
+  name: string;
+  options: readonly T[];
+  labels: Record<T, string>;
+  multiple?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-min-one={multiple ? name : undefined}>
       {options.map((value) => (
         <label
           key={value}
           className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-amber-500 has-checked:border-amber-500 has-checked:bg-amber-50 has-checked:ring-1 has-checked:ring-amber-500 dark:border-slate-700 dark:has-checked:bg-amber-500/10"
         >
-          <input type="radio" name={name} value={value} required className="h-4 w-4 accent-amber-600" />
+          <input
+            type={multiple ? "checkbox" : "radio"}
+            name={name}
+            value={value}
+            required={!multiple}
+            className="h-4 w-4 accent-amber-600"
+          />
           {labels[value]}
         </label>
       ))}
@@ -88,15 +104,24 @@ export function QuestionsForm({
             <Input aria-label={o.serviceArea} name="serviceArea" required minLength={2} maxLength={100} placeholder={o.serviceAreaHint} />
           ) : null}
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">{t.start.country.label}</legend>
-            <Choices name="country" options={["CA", "US"] as const} labels={t.start.country} />
+            <legend className="mb-1 text-sm font-medium">
+              {t.start.country.label}
+              {reach === "national" ? <span className="font-normal opacity-70"> — {t.start.pickCountries}</span> : null}
+            </legend>
+            {/* key forces a fresh group when switching between one and several countries */}
+            <Choices key={reach} name="countries" options={["CA", "US"] as const} labels={t.start.country} multiple={reach === "national"} />
           </fieldset>
         </div>
       ),
     },
     {
       title: q.goal,
-      body: <Choices name="primaryGoal" options={["calls", "form_leads", "walk_ins", "lower_ad_spend"] as const} labels={o.goal} />,
+      body: (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-slate-600 dark:text-slate-400">{t.start.pickAll}</p>
+          <Choices name="goals" options={["calls", "form_leads", "walk_ins", "lower_ad_spend"] as const} labels={o.goal} multiple />
+        </div>
+      ),
     },
     {
       title: q.adSpend,
@@ -121,14 +146,39 @@ export function QuestionsForm({
   ];
   const last = steps.length - 1;
 
+  /** Checkbox groups need at least one ticked box (HTML can't express that). */
+  function groupsValid(root: ParentNode | null | undefined): boolean {
+    for (const group of root?.querySelectorAll<HTMLElement>("[data-min-one]") ?? []) {
+      const boxes = [...group.querySelectorAll<HTMLInputElement>("input[type=checkbox]")];
+      const ok = boxes.some((b) => b.checked);
+      boxes[0]?.setCustomValidity(ok ? "" : t.start.pickOne);
+      if (!ok) {
+        boxes[0]?.reportValidity();
+        return false;
+      }
+    }
+    return true;
+  }
+
   function next() {
-    const fields = stepRefs.current[step]?.querySelectorAll("input") ?? [];
+    const root = stepRefs.current[step];
+    if (!groupsValid(root)) return;
+    const fields = root?.querySelectorAll("input") ?? [];
     for (const field of fields) if (!field.reportValidity()) return;
     setStep((s) => Math.min(s + 1, last));
   }
 
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form
+      action={action}
+      className="flex flex-col gap-6"
+      onChange={(e) => {
+        // Clear the "choose at least one" message as soon as a box is ticked.
+        if (e.target instanceof HTMLInputElement && e.target.type === "checkbox") {
+          e.target.closest("[data-min-one]")?.querySelector("input")?.setCustomValidity("");
+        }
+      }}
+    >
       {turnstileSiteKey ? (
         <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" nonce={nonce} />
       ) : null}

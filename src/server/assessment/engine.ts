@@ -1,11 +1,13 @@
 import "server-only";
 import { aiInsights } from "@/server/ai/insights";
 import type { GeminiTransport } from "@/server/ai/gemini";
-import type { DataForSeoTransport } from "@/server/dataforseo/client";
+import { DataForSeoError, type DataForSeoTransport } from "@/server/dataforseo/client";
+import { z } from "zod";
 import { keywordValues, localSerp, pageTwoKeywords } from "@/server/dataforseo/market";
 import { SpendCapReachedError } from "@/server/security/spend";
 import type { Answers } from "@/server/onboarding/answers";
-import { opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult } from "./result";
+import type { Country } from "@/server/db/schema";
+import { opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult, type Market } from "./result";
 
 export class AssessmentUnavailableError extends Error {}
 
@@ -21,20 +23,29 @@ async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: bo
     return { value: await p, ok: true };
   } catch (err) {
     if (err instanceof SpendCapReachedError) throw err;
-    // Log the error class only; messages can contain request details.
-    console.warn("[assessment] lookup failed:", err instanceof Error ? err.constructor.name : "unknown");
+    // Our DataForSEO errors carry safe, credential-free messages (status
+    // codes); anything else is logged by type only.
+    const detail =
+      err instanceof DataForSeoError
+        ? err.message
+        : err instanceof z.ZodError
+          ? `response format changed at ${err.issues[0]?.path.join(".") || "root"}`
+          : err instanceof Error
+            ? err.name
+            : "unknown";
+    console.warn("[assessment] lookup failed:", detail);
     return { value: fallback, ok: false };
   }
 }
 
-export async function runAssessment(answers: Answers, deps: EngineDeps): Promise<AssessmentResult> {
-  const keyword = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
+type MarketData = Omit<Market, "country"> & { country: Country; adText: string[]; ok: boolean };
+
+async function lookupMarket(answers: Answers, country: Country, keyword: string, deps: EngineDeps): Promise<MarketData> {
   const [serp, ranked, values] = await Promise.all([
-    settle(localSerp(deps.dataforseo, keyword, answers.country), { ads: [], organic: [] }),
-    settle(pageTwoKeywords(deps.dataforseo, answers.website, answers.country), []),
-    settle(keywordValues(deps.dataforseo, keyword, answers.country), []),
+    settle(localSerp(deps.dataforseo, keyword, country), { ads: [], organic: [] }),
+    settle(pageTwoKeywords(deps.dataforseo, answers.website, country), []),
+    settle(keywordValues(deps.dataforseo, keyword, country), []),
   ]);
-  if (!serp.ok && !ranked.ok && !values.ok) throw new AssessmentUnavailableError();
 
   const own = answers.website;
   const isOwn = (d: string) => d === own || d.endsWith(`.${own}`);
@@ -60,16 +71,10 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
   const cpcs = topKeywords.map((k) => k.cpcUsd).filter((c) => c > 0);
   const ownHit = serp.value.organic.find((o) => isOwn(o.domain));
 
-  const base: Omit<AssessmentResult, "insights" | "insightsSource"> = {
-    version: 1,
-    domain: own,
-    country: answers.country,
-    serviceArea: answers.serviceArea,
-    reach: answers.reach,
-    category: answers.category,
-    primaryKeyword: keyword,
-    dataSource: deps.dataSource,
-    generatedAt: (deps.now?.() ?? new Date()).toISOString(),
+  return {
+    country,
+    ok: serp.ok || ranked.ok || values.ok,
+    adText: competitorAds.slice(0, 5).map((a) => `${a.title} — ${a.description}`),
     metrics: {
       advertisers: competitors.length,
       topCpcUsd: cpcs.length ? Math.max(...cpcs) : null,
@@ -82,6 +87,34 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
     topKeywords,
     competitors,
   };
+}
+
+export async function runAssessment(answers: Answers, deps: EngineDeps): Promise<AssessmentResult> {
+  const keyword = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
+  // One set of lookups per country, in parallel; the first country leads.
+  const markets = await Promise.all(answers.countries.map((c) => lookupMarket(answers, c, keyword, deps)));
+  if (!markets.some((m) => m.ok)) throw new AssessmentUnavailableError();
+  const [main, ...others] = markets;
+  const strip = (m: MarketData): Market => ({
+    country: m.country,
+    metrics: m.metrics,
+    rescueTargets: m.rescueTargets,
+    topKeywords: m.topKeywords,
+    competitors: m.competitors,
+  });
+
+  const base: Omit<AssessmentResult, "insights" | "insightsSource"> = {
+    version: 1,
+    domain: answers.website,
+    serviceArea: answers.serviceArea,
+    reach: answers.reach,
+    category: answers.category,
+    primaryKeyword: keyword,
+    dataSource: deps.dataSource,
+    generatedAt: (deps.now?.() ?? new Date()).toISOString(),
+    ...strip(main),
+    ...(others.length ? { otherMarkets: others.map(strip) } : {}),
+  };
 
   const ai = await aiInsights(
     deps.gemini,
@@ -89,18 +122,25 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
       business: {
         category: answers.category,
         serviceArea: answers.serviceArea,
-        goal: answers.primaryGoal,
+        goals: answers.goals,
         adSpend: answers.adSpendRange,
+        countries: answers.countries,
       },
-      metrics: base.metrics,
-      topKeywords,
-      rescueTargets: rescueTargets.map((k) => ({ keyword: k.keyword, position: k.position, monthlySearches: k.monthlySearches, cpcUsd: k.cpcUsd })),
-      competitorAdText: competitorAds.slice(0, 5).map((a) => `${a.title} — ${a.description}`),
+      metrics: main.metrics,
+      otherMarkets: others.map((m) => ({ country: m.country, metrics: m.metrics })),
+      topKeywords: main.topKeywords,
+      rescueTargets: main.rescueTargets.map((k) => ({
+        keyword: k.keyword,
+        position: k.position,
+        monthlySearches: k.monthlySearches,
+        cpcUsd: k.cpcUsd,
+      })),
+      competitorAdText: markets.flatMap((m) => m.adText).slice(0, 8),
     },
-    competitors.map((c) => c.domain),
+    markets.flatMap((m) => m.competitors.map((c) => c.domain)),
   );
 
   return ai
     ? { ...base, insights: ai, insightsSource: "ai" }
-    : { ...base, insights: ruleInsights(base, answers.primaryGoal), insightsSource: "rules" };
+    : { ...base, insights: ruleInsights(base, answers.goals), insightsSource: "rules" };
 }

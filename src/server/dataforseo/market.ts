@@ -13,6 +13,17 @@ export const LOCATION_CODE: Record<Country, number> = { CA: 2124, US: 2840 };
 const num = z.number().nullable().optional();
 const str = z.string().nullable().optional();
 
+const itemsOf = z.object({ items: z.array(z.unknown()).nullable().optional() }).nullable();
+
+/** Parse each item on its own: an odd entry is skipped instead of failing the lookup. */
+function parseItems<T extends z.ZodType>(raw: unknown, item: T): z.infer<T>[] {
+  const items = itemsOf.parse(raw)?.items ?? [];
+  return items.flatMap((i) => {
+    const r = item.safeParse(i);
+    return r.success ? [r.data] : [];
+  });
+}
+
 export type PaidAd = { domain: string; title: string; description: string };
 export type OrganicHit = { domain: string; position: number };
 export type RankedKeyword = { keyword: string; position: number; searchVolume: number; cpcUsd: number };
@@ -25,7 +36,6 @@ const serpItem = z.object({
   description: str,
   rank_group: num,
 });
-const serpResult = z.object({ items: z.array(serpItem).nullable().optional() }).nullable();
 
 export async function localSerp(
   t: DataForSeoTransport,
@@ -39,7 +49,7 @@ export async function localSerp(
     device: "mobile",
     depth: 20,
   });
-  const items = serpResult.parse(raw)?.items ?? [];
+  const items = parseItems(raw, serpItem);
   const ads = items
     .filter((i) => i.type === "paid" && i.domain)
     .map((i) => ({ domain: i.domain!.toLowerCase(), title: i.title ?? "", description: i.description ?? "" }));
@@ -49,24 +59,15 @@ export async function localSerp(
   return { ads, organic };
 }
 
-const rankedResult = z
-  .object({
-    items: z
-      .array(
-        z.object({
-          keyword_data: z.object({
-            keyword: z.string(),
-            keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional(),
-          }),
-          ranked_serp_element: z.object({
-            serp_item: z.object({ rank_group: num }).nullable().optional(),
-          }),
-        }),
-      )
-      .nullable()
-      .optional(),
-  })
-  .nullable();
+const rankedItem = z.object({
+  keyword_data: z.object({
+    keyword: z.string(),
+    keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional(),
+  }),
+  ranked_serp_element: z.object({
+    serp_item: z.object({ rank_group: num }).nullable().optional(),
+  }),
+});
 
 /** Keywords where `domain` ranks 11-30 (pages 2-3), most searched first. */
 export async function pageTwoKeywords(t: DataForSeoTransport, domain: string, country: Country): Promise<RankedKeyword[]> {
@@ -83,7 +84,7 @@ export async function pageTwoKeywords(t: DataForSeoTransport, domain: string, co
     ],
     order_by: ["keyword_data.keyword_info.search_volume,desc"],
   });
-  return (rankedResult.parse(raw)?.items ?? [])
+  return parseItems(raw, rankedItem)
     .map((i) => ({
       keyword: i.keyword_data.keyword,
       position: i.ranked_serp_element.serp_item?.rank_group ?? 0,
@@ -93,19 +94,10 @@ export async function pageTwoKeywords(t: DataForSeoTransport, domain: string, co
     .filter((k) => k.position >= 11 && k.position <= 30);
 }
 
-const suggestionsResult = z
-  .object({
-    items: z
-      .array(
-        z.object({
-          keyword: z.string(),
-          keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional(),
-        }),
-      )
-      .nullable()
-      .optional(),
-  })
-  .nullable();
+const suggestionItem = z.object({
+  keyword: z.string(),
+  keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional(),
+});
 
 /** Search volume and cost-per-click for searches containing the seed phrase. */
 export async function keywordValues(t: DataForSeoTransport, seed: string, country: Country): Promise<KeywordValue[]> {
@@ -117,7 +109,7 @@ export async function keywordValues(t: DataForSeoTransport, seed: string, countr
     limit: 30,
     order_by: ["keyword_info.search_volume,desc"],
   });
-  return (suggestionsResult.parse(raw)?.items ?? []).map((i) => ({
+  return parseItems(raw, suggestionItem).map((i) => ({
     keyword: i.keyword,
     searchVolume: i.keyword_info?.search_volume ?? 0,
     cpcUsd: i.keyword_info?.cpc ?? 0,

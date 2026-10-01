@@ -83,7 +83,7 @@ export async function listUserOrganizations(userId: string) {
 /** What the app may set on a new org. Trial and billing columns are excluded on purpose. */
 export type NewOrganization = Pick<
   OrgInsert,
-  "name" | "websiteDomain" | "serviceArea" | "category" | "primaryGoal" | "adSpendRange" | "websiteManager" | "country"
+  "name" | "websiteDomain" | "serviceArea" | "category" | "primaryGoal" | "adSpendRange" | "websiteManager" | "country" | "goals" | "countries"
 >;
 
 /** Create an organization with `userId` as its first owner. Starts the 7-day trial (a DB default). */
@@ -102,11 +102,14 @@ export async function createOrganization(
     // billing_column_grants migration). Drizzle's insert would list them all.
     await tx.execute(sql`
       INSERT INTO organizations
-        (id, name, website_domain, service_area, category, primary_goal, ad_spend_range, website_manager, country)
+        (id, name, website_domain, service_area, category, primary_goal, ad_spend_range, website_manager, country,
+         goals, countries)
       VALUES
         (${orgId}, ${input.name}, ${input.websiteDomain ?? null}, ${input.serviceArea ?? null},
          ${input.category ?? null}, ${input.primaryGoal ?? null}, ${input.adSpendRange ?? null},
-         ${input.websiteManager ?? null}, ${input.country ?? null})`);
+         ${input.websiteManager ?? null}, ${input.country ?? null},
+         ${input.goals ? `{${input.goals.join(",")}}` : null}::primary_goal[],
+         ${input.countries ? `{${input.countries.join(",")}}` : null}::country[])`);
     await tx.insert(memberships).values({ orgId, userId: uid, role: "owner" });
     await tx.insert(auditLog).values({ orgId, actorUserId: uid, action: "org.created" });
     if (attach) await tx.insert(orgAssessments).values({ orgId, resultJson: attach.assessment });

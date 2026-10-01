@@ -1,5 +1,5 @@
 import type { Insight } from "@/server/ai/insights";
-import type { AssessmentResult } from "@/server/assessment/result";
+import type { AssessmentResult, Market } from "@/server/assessment/result";
 import { t } from "@/lib/i18n/en";
 
 const a = t.assessment;
@@ -99,6 +99,23 @@ function Table({ caption, head, rows }: { caption: string; head: string[]; rows:
 
 /** Full results — only ever rendered for members of the organization. */
 export function FullDetails({ r }: { r: AssessmentResult }) {
+  const others = r.otherMarkets ?? [];
+  return (
+    <div className="flex flex-col gap-10">
+      {others.length ? <h2 className="text-2xl font-semibold">{a.marketTitle(a.countryNames[r.country])}</h2> : null}
+      <MarketDetails r={r} />
+      {others.map((m) => (
+        <section key={m.country} className="flex flex-col gap-6 border-t border-slate-200 pt-8 dark:border-slate-800">
+          <h2 className="text-2xl font-semibold">{a.marketTitle(a.countryNames[m.country])}</h2>
+          <MetricTiles m={m.metrics} />
+          <MarketDetails r={m} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function MarketDetails({ r }: { r: Market }) {
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">

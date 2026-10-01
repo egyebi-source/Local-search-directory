@@ -7,21 +7,26 @@ import { assertUnderCap, recordSpend } from "@/server/security/spend";
 // validated loosely (only the fields we use) so harmless additions on their
 // side don't break us, while unexpected shapes are rejected cleanly.
 
-export class DataForSeoError extends Error {}
+/** Messages are written by us and never contain credentials, so they are safe to log. */
+export class DataForSeoError extends Error {
+  override name = "DataForSeoError";
+}
 
 const envelope = z.object({
   status_code: z.number(),
-  cost: z.number().optional().default(0),
+  status_message: z.string().optional(),
+  cost: z.number().nullable().optional(),
   tasks: z
     .array(
       z.object({
         status_code: z.number(),
         status_message: z.string().optional(),
-        cost: z.number().optional().default(0),
+        cost: z.number().nullable().optional(),
         result: z.array(z.unknown()).nullable().optional(),
       }),
     )
-    .min(1),
+    .nullable()
+    .optional(),
 });
 
 /** Local development only: point at a fake DataForSEO. Ignored on Vercel. */
@@ -47,7 +52,11 @@ export const httpTransport: DataForSeoTransport = async (path, body) => {
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!res.ok) throw new DataForSeoError(`DataForSEO HTTP ${res.status}`);
+  if (!res.ok) {
+    throw new DataForSeoError(
+      res.status === 401 ? "DataForSEO HTTP 401 (check API login/password)" : `DataForSEO HTTP ${res.status}`,
+    );
+  }
   return res.json();
 };
 
@@ -59,12 +68,21 @@ export async function liveTask(
 ): Promise<unknown> {
   await assertUnderCap("dataforseo");
   const parsed = envelope.safeParse(await transport(path, [task]));
-  if (!parsed.success) throw new DataForSeoError("Unexpected DataForSEO response shape");
-  const { tasks } = parsed.data;
+  if (!parsed.success) {
+    throw new DataForSeoError(`Unexpected DataForSEO response shape at ${parsed.error.issues[0]?.path.join(".") || "root"}`);
+  }
+  // Account-level problems (e.g. 40100 not authorized, 40200 payment
+  // required) are reported at the top with no tasks.
+  if (parsed.data.status_code !== 20000) {
+    throw new DataForSeoError(`DataForSEO request failed (${parsed.data.status_code} on ${path})`);
+  }
+  const tasks = parsed.data.tasks ?? [];
   await recordSpend("dataforseo", tasks.reduce((sum, t) => sum + (t.cost ?? 0), 0));
   const first = tasks[0];
+  if (!first) throw new DataForSeoError(`DataForSEO returned no task (${path})`);
   if (first.status_code !== 20000) {
-    throw new DataForSeoError(`DataForSEO task failed (${first.status_code})`);
+    // e.g. 40501 invalid field, 40200 payment required, 40210 insufficient funds.
+    throw new DataForSeoError(`DataForSEO task failed (${first.status_code} on ${path})`);
   }
   return first.result?.[0] ?? null;
 }

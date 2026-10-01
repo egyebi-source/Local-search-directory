@@ -7,7 +7,7 @@ import { normalizeDomain } from "@/lib/domain";
 import { t } from "@/lib/i18n/en";
 import { AssessmentUnavailableError } from "@/server/assessment/engine";
 import { AssessmentCapacityError, AssessmentRateLimitedError, assess } from "@/server/assessment/service";
-import { answersSchema } from "@/server/onboarding/answers";
+import { answersFromForm, answersSchema } from "@/server/onboarding/answers";
 import { DRAFT_COOKIE, saveDraft } from "@/server/onboarding/drafts";
 import { clientIp } from "@/server/request";
 import { SpendCapReachedError } from "@/server/security/spend";
@@ -28,7 +28,7 @@ export async function startAssessmentAction(_prev: StartState, formData: FormDat
  * and show the teaser. Account creation comes after (PRD §2.1).
  */
 export async function saveAnswersAction(_prev: StartState, formData: FormData): Promise<StartState> {
-  const parsed = answersSchema.safeParse(Object.fromEntries(formData));
+  const parsed = answersSchema.safeParse(answersFromForm(formData));
   if (!parsed.success) return { error: t.start.errors.invalid };
 
   const ip = await clientIp();

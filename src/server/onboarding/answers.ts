@@ -22,13 +22,22 @@ const fields = {
   // "local": customers come from a city/region; "national": from anywhere in the country.
   reach: z.enum(["local", "national"]).default("local"),
   serviceArea: z.string().trim().max(100).default(""),
-  country: z.enum(country.enumValues),
-  primaryGoal: z.enum(primaryGoal.enumValues),
+  // Several allowed; order kept (first = main market / main goal).
+  countries: z
+    .array(z.enum(country.enumValues))
+    .min(1)
+    .max(2)
+    .transform((c) => [...new Set(c)]),
+  goals: z
+    .array(z.enum(primaryGoal.enumValues))
+    .min(1)
+    .max(4)
+    .transform((g) => [...new Set(g)]),
   adSpendRange: z.enum(adSpendRange.enumValues),
   websiteManager: z.enum(websiteManager.enumValues),
 };
 
-type Base = { reach: "local" | "national"; serviceArea: string };
+type Base = { reach: "local" | "national"; serviceArea: string; countries: string[] };
 
 // Local businesses must name their area; nationwide ones get a fixed label.
 function withReach<T extends z.ZodType<Base>>(schema: T) {
@@ -36,6 +45,10 @@ function withReach<T extends z.ZodType<Base>>(schema: T) {
     .superRefine((a, ctx) => {
       if (a.reach === "local" && a.serviceArea.length < 2) {
         ctx.addIssue({ code: "custom", path: ["serviceArea"], message: "serviceArea" });
+      }
+      // A city is in one country; several countries only make sense nationwide.
+      if (a.reach === "local" && a.countries.length > 1) {
+        ctx.addIssue({ code: "custom", path: ["countries"], message: "countries" });
       }
     })
     .transform((a) => (a.reach === "national" ? { ...a, serviceArea: NATIONWIDE } : a));
@@ -50,3 +63,11 @@ export const draftSchema = withReach(
   z.object({ ...fields, snapshotId: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional() }),
 );
 export type Draft = z.infer<typeof draftSchema>;
+
+/** FormData -> plain object, keeping every value of the multi-select fields. */
+export function answersFromForm(form: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = Object.fromEntries(form);
+  out.countries = form.getAll("countries");
+  out.goals = form.getAll("goals");
+  return out;
+}

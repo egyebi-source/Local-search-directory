@@ -27,7 +27,11 @@ export type AssessmentResult = {
   rescueTargets: { keyword: string; position: number; monthlySearches: number; cpcUsd: number; score: number }[];
   topKeywords: { keyword: string; monthlySearches: number; cpcUsd: number }[];
   competitors: { domain: string; ads: number }[];
+  /** Extra countries for nationwide businesses (the fields above are the first country). */
+  otherMarkets?: Market[];
 };
+
+export type Market = Pick<AssessmentResult, "country" | "metrics" | "rescueTargets" | "topKeywords" | "competitors">;
 
 export const FREE_INSIGHTS = 2;
 
@@ -42,6 +46,7 @@ export type Teaser = {
   lockedInsights: number;
   lockedRescueTargets: number;
   lockedCompetitors: number;
+  otherCountries: Country[];
 };
 
 /**
@@ -61,6 +66,7 @@ export function toTeaser(r: AssessmentResult): Teaser {
     lockedInsights: Math.max(0, r.insights.length - FREE_INSIGHTS),
     lockedRescueTargets: r.rescueTargets.length,
     lockedCompetitors: r.competitors.length,
+    otherCountries: (r.otherMarkets ?? []).map((m) => m.country),
   };
 }
 
@@ -84,7 +90,8 @@ export function opportunityScore(position: number, monthlySearches: number, cpcU
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 /** Deterministic findings used when the AI is unavailable or misbehaves. */
-export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSource">, goal: string): Insight[] {
+export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSource">, goals: string[]): Insight[] {
+  const goal = goals[0] ?? "calls";
   const m = r.metrics;
   const top = r.rescueTargets[0];
   const goalLine: Record<string, string> = {

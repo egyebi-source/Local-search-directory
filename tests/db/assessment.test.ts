@@ -14,8 +14,8 @@ const answers = answersSchema.parse({
   name: "Acme Collision",
   category: "Collision repair",
   serviceArea: "Ottawa, ON",
-  country: "CA",
-  primaryGoal: "calls",
+  countries: ["CA"],
+  goals: ["calls"],
   adSpendRange: "500_2000",
   websiteManager: "agency",
 });
@@ -71,6 +71,25 @@ describe.runIf(hasDb)("assessment engine", () => {
     expect(r.reach).toBe("national");
     const serpCall = dfs.calls.find((c) => c.path.startsWith("serp/"));
     expect((serpCall?.body as { keyword: string; location_code: number }[])[0]).toMatchObject({ keyword: "collision repair", location_code: 2124 });
+  });
+
+  it("runs a separate set of lookups for each country chosen", async () => {
+    const dfs = fakeDataForSeo();
+    const both = answersSchema.parse({ ...answers, reach: "national", serviceArea: "", countries: ["CA", "US"] });
+    const r = await runAssessment(both, {
+      dataforseo: dfs.transport,
+      gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport,
+      dataSource: "sandbox",
+    });
+    expect(dfs.calls).toHaveLength(6);
+    const codes = dfs.calls.map((c) => (c.body as { location_code: number }[])[0].location_code);
+    expect(codes.filter((c) => c === 2124)).toHaveLength(3);
+    expect(codes.filter((c) => c === 2840)).toHaveLength(3);
+    expect(r.country).toBe("CA");
+    expect(r.otherMarkets?.map((m) => m.country)).toEqual(["US"]);
+    expect(toTeaser(r).otherCountries).toEqual(["US"]);
+    // The teaser never includes the other country's details.
+    expect(JSON.stringify(toTeaser(r))).not.toContain("rivalautobody");
   });
 
   it("never gives the AI competitor names, and marks their ad text as untrusted data", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answersSchema } from "@/server/onboarding/answers";
+import { answersFromForm, answersSchema } from "@/server/onboarding/answers";
 import { consumeDraft, saveDraft } from "@/server/onboarding/drafts";
 import { asOwner, hasDb } from "./helpers";
 
@@ -8,8 +8,8 @@ const answers = answersSchema.parse({
   name: "Acme Collision",
   category: "Collision repair",
   serviceArea: "Ottawa, ON",
-  country: "CA",
-  primaryGoal: "calls",
+  countries: ["CA"],
+  goals: ["calls"],
   adSpendRange: "under_500",
   websiteManager: "self",
 });
@@ -27,8 +27,26 @@ describe("answersSchema", () => {
     expect(answers.reach).toBe("local");
   });
 
+  it("accepts several goals, and several countries only for nationwide businesses", () => {
+    expect(answersSchema.parse({ ...answers, goals: ["calls", "form_leads", "calls"] }).goals).toEqual(["calls", "form_leads"]);
+    expect(answersSchema.safeParse({ ...answers, goals: [] }).success).toBe(false);
+    expect(answersSchema.safeParse({ ...answers, countries: ["CA", "US"] }).success).toBe(false);
+    expect(answersSchema.parse({ ...answers, reach: "national", countries: ["CA", "US"] }).countries).toEqual(["CA", "US"]);
+    expect(answersSchema.safeParse({ ...answers, countries: [] }).success).toBe(false);
+  });
+
+  it("reads every ticked checkbox from the submitted form", () => {
+    const form = new FormData();
+    form.append("goals", "calls");
+    form.append("goals", "walk_ins");
+    form.append("countries", "US");
+    const out = answersFromForm(form);
+    expect(out.goals).toEqual(["calls", "walk_ins"]);
+    expect(out.countries).toEqual(["US"]);
+  });
+
   it("rejects unknown choices and bad websites", () => {
-    expect(answersSchema.safeParse({ ...answers, primaryGoal: "world_domination" }).success).toBe(false);
+    expect(answersSchema.safeParse({ ...answers, goals: ["world_domination"] }).success).toBe(false);
     expect(answersSchema.safeParse({ ...answers, website: "localhost" }).success).toBe(false);
     expect(answersSchema.safeParse({ ...answers, name: "" }).success).toBe(false);
   });
@@ -56,7 +74,7 @@ describe.runIf(hasDb)("pre-sign-up drafts", () => {
 
   it("re-validates stored answers instead of trusting them", async () => {
     const token = await saveDraft(answers);
-    await asOwner((c) => c.query(`UPDATE assessment_drafts SET answers = answers || '{"primaryGoal":"hacked"}'`));
+    await asOwner((c) => c.query(`UPDATE assessment_drafts SET answers = answers || '{"goals":["hacked"]}'`));
     expect(await consumeDraft(token)).toBeNull();
   });
 });

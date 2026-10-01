@@ -46,6 +46,11 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
             </section>
             <section className="flex flex-col items-center gap-3 rounded-2xl bg-slate-950 px-6 py-10 text-center text-white">
               <p className="max-w-lg text-lg">{a.locked(teaser.lockedInsights)}</p>
+              {teaser.otherCountries.length ? (
+                <p className="max-w-lg text-slate-300">
+                  {a.alsoAssessed(teaser.otherCountries.map((c) => a.countryNames[c]).join(", "))}
+                </p>
+              ) : null}
               {canUnlock ? (
                 <Link
                   href={`/login?callbackUrl=${encodeURIComponent("/onboarding/complete")}`}

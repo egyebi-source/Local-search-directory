@@ -126,6 +126,9 @@ export const organizations = pgTable("organizations", {
   adSpendRange: adSpendRange("ad_spend_range"),
   websiteManager: websiteManager("website_manager"),
   country: country("country"),
+  // All goals and countries chosen; primaryGoal/country hold the first of each.
+  goals: primaryGoal("goals").array(),
+  countries: country("countries").array(),
   planStatus: planStatus("plan_status").notNull().default("trialing"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
     .notNull()
@@ -203,7 +206,7 @@ export const assessmentDrafts = pgTable(
   "assessment_drafts",
   {
     tokenHash: text("token_hash").primaryKey(),
-    answers: jsonb("answers").$type<Record<string, string>>().notNull(),
+    answers: jsonb("answers").$type<Record<string, unknown>>().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: createdAt(),
   },
