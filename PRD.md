@@ -308,3 +308,10 @@ tests/
 2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. Prices decided: **$49 USD/month or $490 USD/year** (two months free), USD only (no CAD conversion shown; the customer's bank converts), plus applicable sales tax (GST/HST/QST via Stripe Tax). Site lives on a .ca domain. Still open: whether plans later differ (e.g., number of locations/properties).
 3. Which email address becomes the Google Cloud and Vercel owner account (should be a company account, not personal, with 2-step verification on).
 4. Legal review of privacy policy and terms before Google verification.
+
+## 14. Pre-launch checklist (before the first paying customer)
+- [ ] Vercel team upgraded to Pro (Hobby plan is non-commercial only); turn on Skew Protection
+- [ ] Neon organization upgraded to a paid plan; restore window (history retention) at least 7 days
+- [ ] Rotate every credential that was ever shared in chat or a terminal: database role passwords, `AUTH_SECRET`, DataForSEO API password
+- [ ] Real Cloudflare Turnstile keys in production; `DATAFORSEO_MODE=live` set deliberately; Gemini billing enabled
+- [ ] Domains bought and connected (torquerank.ca + .com)
