@@ -27,7 +27,7 @@ export async function assess(answers: Answers, ip: string, deps: EngineDeps = re
     throw new AssessmentRateLimitedError();
   }
 
-  const cacheKey = cacheKeyFor(answers);
+  const cacheKey = cacheKeyFor(answers, deps.dataSource);
   const reusable = await findReusable(cacheKey);
   if (reusable) return createSnapshot(reusable, cacheKey, ip);
 

@@ -184,6 +184,13 @@ describe.runIf(hasDb)("assessment service: abuse and cost controls", () => {
     expect((await getSnapshot(id))?.domain).toBe("acmecollision.ca");
   });
 
+  it("never serves a sample (sandbox) result once real data is switched on", async () => {
+    await assess(answers, "203.0.113.12", { ...deps(), dataSource: "sandbox" });
+    const live = fakeDataForSeo();
+    await assess(answers, "203.0.113.13", { ...deps(), dataSource: "live", dataforseo: live.transport });
+    expect(live.calls.length).toBeGreaterThan(0);
+  });
+
   it("stops calling paid APIs once the daily spend cap is reached", async () => {
     vi.stubEnv("DAILY_SPEND_CAP_DATAFORSEO_CENTS", "1");
     await asOwner((c) =>

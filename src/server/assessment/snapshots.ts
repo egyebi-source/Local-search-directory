@@ -11,9 +11,10 @@ export const SNAPSHOT_TTL_DAYS = 30;
 const DAY_MS = 86_400_000;
 const ID = /^[A-Za-z0-9_-]{43}$/;
 
-export function cacheKeyFor(a: Answers): string {
+/** Sample (sandbox) and real results never share a cache entry. */
+export function cacheKeyFor(a: Answers, dataSource: "sandbox" | "live"): string {
   return sha256Hex(
-    [a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
+    [dataSource, a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
   );
 }
 
