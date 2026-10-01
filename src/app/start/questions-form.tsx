@@ -39,6 +39,7 @@ export function QuestionsForm({
 }) {
   const [state, action, pending] = useActionState<StartState, FormData>(saveAnswersAction, {});
   const [step, setStep] = useState(0);
+  const [reach, setReach] = useState<"local" | "national">("local");
   const stepRefs = useRef<(HTMLFieldSetElement | null)[]>([]);
 
   const steps: { title: string; body: React.ReactNode }[] = [
@@ -65,7 +66,27 @@ export function QuestionsForm({
       title: q.serviceArea,
       body: (
         <div className="flex flex-col gap-4">
-          <Input aria-label={o.serviceArea} name="serviceArea" required minLength={2} maxLength={100} placeholder={o.serviceAreaHint} />
+          <div className="flex flex-col gap-2" role="radiogroup" aria-label={q.serviceArea}>
+            {(["local", "national"] as const).map((value) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-amber-500 has-checked:border-amber-500 has-checked:bg-amber-50 has-checked:ring-1 has-checked:ring-amber-500 dark:border-slate-700 dark:has-checked:bg-amber-500/10"
+              >
+                <input
+                  type="radio"
+                  name="reach"
+                  value={value}
+                  checked={reach === value}
+                  onChange={() => setReach(value)}
+                  className="h-4 w-4 accent-amber-600"
+                />
+                {t.start.reach[value]}
+              </label>
+            ))}
+          </div>
+          {reach === "local" ? (
+            <Input aria-label={o.serviceArea} name="serviceArea" required minLength={2} maxLength={100} placeholder={o.serviceAreaHint} />
+          ) : null}
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium">{t.start.country.label}</legend>
             <Choices name="country" options={["CA", "US"] as const} labels={t.start.country} />

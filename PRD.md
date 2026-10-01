@@ -46,7 +46,9 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 
 **Goals (v1):** assessment-first funnel (value before sign-up); 7-day no-card trial with paid monthly/annual plans; secure optional Google connection; daily cached dashboard; keyword-gap "Rescue Targets"; AI action checklist; full self-service disconnect and deletion.
 
-**Non-goals (v1):** managing or editing Google Ads campaigns; writing to GSC/GA4 (read-only only); publishing content to the user's website automatically; white-label agency mode; mobile app.
+**Non-goals (v1):** managing or editing Google Ads campaigns; writing to GSC/GA4 (read-only only); publishing content to the user's website automatically; mobile app. Networks/agencies (Module 11) are planned after billing, not in the first launch.
+
+**Who it's for:** any business that wins customers from Google searches: local service businesses first (best fit: high value per customer, e.g. home services, auto body/repair, dental, legal), plus national brands via the "Across the whole country" option. Marketing goes one industry at a time.
 
 ## 4. Stack and infrastructure
 
@@ -71,6 +73,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-1.4 Gemini produces a 5-item summary. Shareable result page at an unguessable URL (random 22+ char ID), expires after 30 days.
 - FR-1.5 Results page shows a limited set of insights; the rest is locked behind the gate (§2.1). Locked items are rendered as server-side placeholders; their content is not in the HTML, JSON or RSC payload. CTA: "Unlock your full dashboard — free for 7 days, no card."
 - FR-1.7 On gate completion the snapshot is attached to the new organization (copied into org-scoped tables) so the dashboard opens with it already populated.
+- FR-1.2a **Reach:** the service-area question offers "In a city or region" (search phrase = service + city) or "Across the whole country" (search phrase = service only, country-level data). Organizations store "Nationwide" as their service area.
 - FR-1.3a DataForSEO endpoints used (sandbox by default; `DATAFORSEO_MODE=live` for real data): SERP API Google organic live/advanced for "service + city" (paid ads → local advertisers; organic → the site's position), DataForSEO Labs `ranked_keywords` (site's positions 11–30 = rescue targets), Labs `keyword_suggestions` (local volume + CPC). Country (Canada/US) is asked in the questions.
 - FR-1.6 Daily DataForSEO and Gemini spend caps; when hit, show a friendly "try again tomorrow" message and alert the admin.
 
@@ -127,6 +130,14 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-10.5 Locked org: every dashboard page shows only the lock screen and "Add a card to unlock"; data sync stops. Owners can still export or delete their data.
 - FR-10.6 30 days after locking (or immediately on owner request): revoke Google tokens, hard-delete org data (as FR-8.2). Email reminders: trial day 5, day 7, lock day, and 7 days before deletion.
 - FR-10.7 A daily cron applies trial expiry and scheduled deletions; the dashboard also checks status on every request so access never depends on the cron having run.
+
+### Module 11 — Networks and agencies (planned, design with owner before building)
+Who it's for: (a) networks of independent local businesses (e.g. Collision Collective and its member shops), (b) agencies/freelancers managing many clients. Both need one login over many businesses.
+- FR-11.1 A **network** groups many organizations. Network admins see a roll-up (per-location assessments, rescue targets, trends) and can open any member location they've been granted.
+- FR-11.2 **Each location remains its own organization** with its own data and RLS. A network never gets blanket access: a location owner explicitly accepts joining a network and can leave it; the network sees only what membership grants. Members' Google connections stay theirs.
+- FR-11.3 Network onboarding: bulk-invite member locations (CSV of name, website, city) → each gets a pre-run assessment and an invite to claim their dashboard.
+- FR-11.4 Billing options to decide: network pays per location (e.g. member benefit), or members pay individually with a network discount. White-label/co-branded reports for networks and agencies.
+- FR-11.5 Open decisions for the owner: per-location price, who owns a location's data if it leaves the network (default: the location), what network admins may see (default: summaries, not raw Google data, unless the location opts in).
 
 ### Module 9 — Admin
 - FR-9.1 Admin page (role-gated) showing sync success rates, failing orgs by error code, API spend vs. caps.

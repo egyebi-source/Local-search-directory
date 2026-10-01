@@ -59,6 +59,20 @@ describe.runIf(hasDb)("assessment engine", () => {
     expect(dfs.calls.every((c) => (c.body as { location_code: number }[])[0].location_code === 2124)).toBe(true);
   });
 
+  it("searches the whole country, with no city, for a nationwide business", async () => {
+    const dfs = fakeDataForSeo();
+    const national = answersSchema.parse({ ...answers, reach: "national", serviceArea: "" });
+    const r = await runAssessment(national, {
+      dataforseo: dfs.transport,
+      gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport,
+      dataSource: "sandbox",
+    });
+    expect(r.primaryKeyword).toBe("collision repair");
+    expect(r.reach).toBe("national");
+    const serpCall = dfs.calls.find((c) => c.path.startsWith("serp/"));
+    expect((serpCall?.body as { keyword: string; location_code: number }[])[0]).toMatchObject({ keyword: "collision repair", location_code: 2124 });
+  });
+
   it("never gives the AI competitor names, and marks their ad text as untrusted data", async () => {
     const ai = fakeGemini([JSON.stringify(GOOD_INSIGHTS)]);
     await runAssessment(answers, { dataforseo: fakeDataForSeo().transport, gemini: ai.transport, dataSource: "sandbox" });

@@ -19,6 +19,14 @@ describe("answersSchema", () => {
     expect(answers.website).toBe("acmecollision.ca");
   });
 
+  it("nationwide businesses don't need a city, local ones do", () => {
+    const national = answersSchema.parse({ ...answers, reach: "national", serviceArea: "" });
+    expect(national.serviceArea).toBe("Nationwide");
+    expect(answersSchema.safeParse({ ...answers, reach: "local", serviceArea: "" }).success).toBe(false);
+    // Default is local, so existing callers keep working.
+    expect(answers.reach).toBe("local");
+  });
+
   it("rejects unknown choices and bad websites", () => {
     expect(answersSchema.safeParse({ ...answers, primaryGoal: "world_domination" }).success).toBe(false);
     expect(answersSchema.safeParse({ ...answers, website: "localhost" }).success).toBe(false);

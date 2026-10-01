@@ -71,6 +71,7 @@ export const en = {
     finish: "See my free assessment",
     analyzing: "Analyzing your market… this takes about 20 seconds",
     country: { label: "Country", CA: "Canada", US: "United States" },
+    reach: { local: "In a city or region", national: "Across the whole country" },
     intro: "A few quick questions so your dashboard focuses on what matters to your business.",
     questions: {
       business: "What's your business called?",

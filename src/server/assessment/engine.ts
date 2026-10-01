@@ -28,7 +28,7 @@ async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: bo
 }
 
 export async function runAssessment(answers: Answers, deps: EngineDeps): Promise<AssessmentResult> {
-  const keyword = primaryKeyword(answers.category, answers.serviceArea);
+  const keyword = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
   const [serp, ranked, values] = await Promise.all([
     settle(localSerp(deps.dataforseo, keyword, answers.country), { ads: [], organic: [] }),
     settle(pageTwoKeywords(deps.dataforseo, answers.website, answers.country), []),
@@ -65,6 +65,7 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
     domain: own,
     country: answers.country,
     serviceArea: answers.serviceArea,
+    reach: answers.reach,
     category: answers.category,
     primaryKeyword: keyword,
     dataSource: deps.dataSource,

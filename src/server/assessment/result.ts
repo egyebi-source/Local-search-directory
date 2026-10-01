@@ -9,6 +9,7 @@ export type AssessmentResult = {
   domain: string;
   country: Country;
   serviceArea: string;
+  reach?: "local" | "national";
   category: string;
   primaryKeyword: string;
   dataSource: "sandbox" | "live";
@@ -68,8 +69,10 @@ export function cityFrom(serviceArea: string): string {
   return serviceArea.split(/[,(\n]/)[0].trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60);
 }
 
-export function primaryKeyword(category: string, serviceArea: string): string {
-  return `${category.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60)} ${cityFrom(serviceArea)}`.trim();
+/** "collision repair ottawa" for a local business; just "collision repair" nationwide. */
+export function primaryKeyword(category: string, serviceArea: string, reach: "local" | "national" = "local"): string {
+  const service = category.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60);
+  return reach === "national" ? service : `${service} ${cityFrom(serviceArea)}`.trim();
 }
 
 /** Page 11 is far closer to page 1 than page 30: weight 1.0 at #11 down to 0.05 at #30. */
@@ -113,8 +116,14 @@ export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSou
         : "We didn't find searches where you're close to page 1 yet. Building service pages for each job type you offer is the first step.",
     },
     {
-      title: `About ${m.monthlySearches.toLocaleString("en-US")} local searches a month for what you do`,
-      detail: "That's the demand in your area for your main services. Each search you show up for is a chance at a call or quote.",
+      title:
+        r.reach === "national"
+          ? `About ${m.monthlySearches.toLocaleString("en-US")} searches a month across the country for what you do`
+          : `About ${m.monthlySearches.toLocaleString("en-US")} local searches a month for what you do`,
+      detail:
+        r.reach === "national"
+          ? "That's national demand for your main services. Each search you show up for is a chance at a lead."
+          : "That's the demand in your area for your main services. Each search you show up for is a chance at a call or quote.",
     },
     { title: "Your quickest next step", detail: goalLine[goal] ?? goalLine.calls },
   ];
