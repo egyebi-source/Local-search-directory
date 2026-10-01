@@ -18,13 +18,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const callbackUrl = safeRedirectPath(params.callbackUrl);
   if ((await auth())?.user) redirect(callbackUrl);
 
+  // Arriving from the six questions: sign-up is the final step.
+  const finishingSignup = callbackUrl === "/onboarding/complete";
   const errorCode = typeof params.error === "string" ? params.error : undefined;
   const error = errorCode ? (ERROR_MESSAGES[errorCode] ?? t.login.errors.generic) : undefined;
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-16">
       <Card className="flex flex-col gap-5">
-        <h1 className="text-2xl font-semibold">{t.login.title}</h1>
+        <h1 className="text-2xl font-semibold">{finishingSignup ? t.start.loginTitle : t.login.title}</h1>
+        {finishingSignup ? <p className="text-sm opacity-80">{t.start.loginBody}</p> : null}
         {error ? (
           <p role="alert" className="text-sm text-red-700 dark:text-red-400">
             {error}

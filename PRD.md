@@ -28,16 +28,12 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 
 ### 2.1 Visitor journey (assessment first, sign-in later)
 
-1. **Assess.** Home page asks for the website URL (plus service area and business type, pre-filled where possible). The assessment runs immediately — no account.
-2. **Tease.** Results page shows a few headline insights in full; the remaining insights and the dashboard preview are locked. **Locked content is never sent to the browser** (no CSS blur over real data): the server renders placeholders until the account is unlocked.
-3. **Gate.** "Unlock your full dashboard" → email sign-in → four questions:
-   - Business type & service area (pre-filled from the assessment)
-   - Main goal: more phone calls / more form leads / more walk-ins / spend less on ads
-   - Current monthly Google Ads spend: none / under $500 / $500–2,000 / $2,000–5,000 / over $5,000
-   - Who manages the website: me / an agency or freelancer / nobody right now
-   Completing the gate creates the organization, attaches the assessment to it, and **starts the 7-day trial**.
-4. **Complete the picture.** Inside the dashboard, prompts to connect Search Console and GA4 (via Google's consent screen — see below) so organic data is combined with the paid competitor data. If an agency manages the site (gate answer), suggest inviting them.
-5. **Convert or lock.** Trial banner counts down. On day 8 an unpaid dashboard **locks** (data kept, nothing shown) with "Add a card to unlock". 30 days after locking, Google access is revoked and all org data is deleted (Module 10).
+1. **Website.** Home page asks for the website URL. No account.
+2. **Six questions, one per screen, no account:** business name (with the website, editable), type of business, service area, main goal (more calls / more form leads / more walk-ins / spend less on ads), monthly Google Ads spend (none / under $500 / $500–2,000 / $2,000–5,000 / over $5,000), who manages the website (me / an agency or freelancer / nobody). Answers are validated server-side and held for 24 hours in `assessment_drafts`, keyed by the SHA-256 of a random token stored in an httpOnly cookie; rate-limited per IP.
+3. **Assessment teaser (Phase 2).** Using the website, type and area, show a few headline insights; the rest is locked. **Locked content is never sent to the browser.**
+4. **Account last.** "Last step: create your free account" → email link (or Google). On return, the draft is consumed once, turned into the organization, and the **7-day trial starts**; the draft and cookie are deleted.
+5. **Complete the picture.** Inside the dashboard, prompts to connect Search Console and GA4 (via Google's consent screen — see below) so organic data is combined with the paid competitor data. If an agency manages the site (gate answer), suggest inviting them.
+6. **Convert or lock.** Trial banner counts down. On day 8 an unpaid dashboard **locks** (data kept, nothing shown) with "Add a card to unlock". 30 days after locking, Google access is revoked and all org data is deleted (Module 10).
 
 ### 2.2 How a member adds their own Google data
 

@@ -63,7 +63,7 @@ export async function withCurrentOrg<T>(
 ): Promise<T> {
   const user = await requireUser();
   const { current } = await currentOrganization(user);
-  if (!current) redirect("/onboarding");
+  if (!current) redirect("/start");
   try {
     return await withOrg(user.id, current.id, async (tx, ctx) => {
       if (!options.allowLocked && !hasAccess(await orgAccess(tx, ctx.orgId))) {

@@ -11,7 +11,7 @@ import { signOutAction } from "../(app)/app/actions";
 export default async function LockedPage() {
   const user = await requireUser();
   const { current } = await currentOrganization(user);
-  if (!current) redirect("/onboarding");
+  if (!current) redirect("/start");
   const access = await withOrg(user.id, current.id, (tx) => orgAccess(tx, current.id));
   if (access.kind !== "locked") redirect("/app");
 

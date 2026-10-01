@@ -64,6 +64,27 @@ export const en = {
       required: "Please answer all four questions.",
     },
   },
+  start: {
+    stepOf: (n: number, total: number) => `Question ${n} of ${total}`,
+    next: "Next",
+    back: "Back",
+    finish: "See my dashboard",
+    intro: "A few quick questions so your dashboard focuses on what matters to your business.",
+    questions: {
+      business: "What's your business called?",
+      category: "What type of business is it?",
+      serviceArea: "Where are your customers?",
+      goal: "What do you want most from your website?",
+      adSpend: "Roughly how much do you spend on Google Ads each month?",
+      manager: "Who looks after your website?",
+    },
+    errors: {
+      invalid: "Some answers are missing or invalid. Please check each question.",
+      rateLimited: "Too many attempts from your network. Please try again in an hour.",
+    },
+    loginTitle: "Last step: create your free account",
+    loginBody: "We'll email you a secure link. Your 7-day free trial starts when you open your dashboard — no card needed.",
+  },
   trial: {
     daysLeft: (n: number) => (n === 1 ? "1 day left in your free trial" : `${n} days left in your free trial`),
     addCard: "Add a card",

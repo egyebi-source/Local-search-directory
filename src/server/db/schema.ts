@@ -188,3 +188,19 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_org_id_created_at_idx").on(t.orgId, t.createdAt)],
 );
+
+// --- Global: pre-sign-up answers ------------------------------------------------
+
+// Answers a visitor gives before creating an account (PRD §2.1). Held for
+// 24 hours, keyed by the SHA-256 of a random token kept in an httpOnly
+// cookie, and deleted the moment they're turned into an organization.
+export const assessmentDrafts = pgTable(
+  "assessment_drafts",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    answers: jsonb("answers").$type<Record<string, string>>().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("assessment_drafts_expires_at_idx").on(t.expiresAt)],
+);

@@ -10,6 +10,7 @@ export const RATE_LIMITS = {
   loginEmailPerAddress: { name: "login-email:addr", limit: 5, windowSeconds: 60 * 60 },
   loginEmailPerIp: { name: "login-email:ip", limit: 20, windowSeconds: 60 * 60 },
   invitePerOrg: { name: "invite:org", limit: 20, windowSeconds: 24 * 60 * 60 },
+  draftPerIp: { name: "draft:ip", limit: 20, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 /**
