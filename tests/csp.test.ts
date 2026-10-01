@@ -14,7 +14,11 @@ describe("buildPageCsp (production)", () => {
   const csp = buildPageCsp("abc123", false);
 
   it("only allows scripts carrying the nonce", () => {
-    expect(csp).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
+    expect(csp).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic' https://challenges.cloudflare.com;");
+  });
+
+  it("allows only Cloudflare's bot-check frame", () => {
+    expect(csp).toContain("frame-src https://challenges.cloudflare.com;");
   });
 
   it("never allows inline or eval'd code", () => {

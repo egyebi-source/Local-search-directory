@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
+  date,
   index,
   integer,
   jsonb,
@@ -109,6 +111,8 @@ export const adSpendRange = pgEnum("ad_spend_range", [
   "over_5000",
 ]);
 export const websiteManager = pgEnum("website_manager", ["self", "agency", "nobody"]);
+export const country = pgEnum("country", ["CA", "US"]);
+export type Country = (typeof country.enumValues)[number];
 export const planStatus = pgEnum("plan_status", ["trialing", "active", "past_due", "locked"]);
 export type PlanStatus = (typeof planStatus.enumValues)[number];
 
@@ -121,6 +125,7 @@ export const organizations = pgTable("organizations", {
   primaryGoal: primaryGoal("primary_goal"),
   adSpendRange: adSpendRange("ad_spend_range"),
   websiteManager: websiteManager("website_manager"),
+  country: country("country"),
   planStatus: planStatus("plan_status").notNull().default("trialing"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
     .notNull()
@@ -203,4 +208,52 @@ export const assessmentDrafts = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("assessment_drafts_expires_at_idx").on(t.expiresAt)],
+);
+
+// --- Global: public assessments (PRD Module 1) ----------------------------------
+
+// Results of the free assessment, reachable only by an unguessable id
+// (32 random bytes). Shared by every visitor with the same cache key for
+// 7 days to control API cost; the page itself expires after 30 days.
+export const publicSnapshots = pgTable(
+  "public_snapshots",
+  {
+    id: text("id").primaryKey(),
+    cacheKey: text("cache_key").notNull(),
+    domain: text("domain").notNull(),
+    country: country("country").notNull(),
+    resultJson: jsonb("result_json").$type<Record<string, unknown>>().notNull(),
+    // SHA-256 of the requester's IP; never the IP itself.
+    ipHash: text("ip_hash"),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("public_snapshots_cache_key_idx").on(t.cacheKey, t.createdAt)],
+);
+
+// Running total of third-party API spend per day, in millionths of a US
+// dollar (DataForSEO bills in fractions of a cent). Enforces daily caps.
+export const apiSpendDaily = pgTable(
+  "api_spend_daily",
+  {
+    day: date("day").notNull(),
+    provider: text("provider").$type<"dataforseo" | "gemini">().notNull(),
+    micros: bigint("micros", { mode: "number" }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.provider] })],
+);
+
+// --- Tenant: the assessment attached to an organization at sign-up ----------------
+
+export const orgAssessments = pgTable(
+  "org_assessments",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    resultJson: jsonb("result_json").$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("org_assessments_org_id_idx").on(t.orgId, t.createdAt)],
 );

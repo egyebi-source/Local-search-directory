@@ -71,6 +71,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-1.4 Gemini produces a 5-item summary. Shareable result page at an unguessable URL (random 22+ char ID), expires after 30 days.
 - FR-1.5 Results page shows a limited set of insights; the rest is locked behind the gate (§2.1). Locked items are rendered as server-side placeholders; their content is not in the HTML, JSON or RSC payload. CTA: "Unlock your full dashboard — free for 7 days, no card."
 - FR-1.7 On gate completion the snapshot is attached to the new organization (copied into org-scoped tables) so the dashboard opens with it already populated.
+- FR-1.3a DataForSEO endpoints used (sandbox by default; `DATAFORSEO_MODE=live` for real data): SERP API Google organic live/advanced for "service + city" (paid ads → local advertisers; organic → the site's position), DataForSEO Labs `ranked_keywords` (site's positions 11–30 = rescue targets), Labs `keyword_suggestions` (local volume + CPC). Country (Canada/US) is asked in the questions.
 - FR-1.6 Daily DataForSEO and Gemini spend caps; when hit, show a friendly "try again tomorrow" message and alert the admin.
 
 ### Module 2 — Accounts, organizations and the gate

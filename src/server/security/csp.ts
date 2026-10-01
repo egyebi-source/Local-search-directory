@@ -14,11 +14,14 @@ export function generateNonce(): string {
 export function buildPageCsp(nonce: string, isDev: boolean): string {
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    // Cloudflare Turnstile (bot check) loads with the nonce; the host is listed
+    // for older browsers that don't support 'strict-dynamic'.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com${isDev ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
+    "frame-src https://challenges.cloudflare.com",
     "object-src 'none'",
     "base-uri 'self'",
     // Google sign-in: the login form's POST redirects to Google's consent page.

@@ -8,6 +8,7 @@ const answers = answersSchema.parse({
   name: "Acme Collision",
   category: "Collision repair",
   serviceArea: "Ottawa, ON",
+  country: "CA",
   primaryGoal: "calls",
   adSpendRange: "under_500",
   websiteManager: "self",

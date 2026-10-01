@@ -5,15 +5,15 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { normalizeDomain } from "@/lib/domain";
 import { t } from "@/lib/i18n/en";
-import { auth } from "@/server/auth";
+import { AssessmentUnavailableError } from "@/server/assessment/engine";
+import { AssessmentCapacityError, AssessmentRateLimitedError, assess } from "@/server/assessment/service";
 import { answersSchema } from "@/server/onboarding/answers";
 import { DRAFT_COOKIE, saveDraft } from "@/server/onboarding/drafts";
 import { clientIp } from "@/server/request";
-import { consumeRateLimit, RATE_LIMITS } from "@/server/security/rate-limit";
+import { SpendCapReachedError } from "@/server/security/spend";
+import { verifyTurnstile } from "@/server/security/turnstile";
 
 export type StartState = { error?: string };
-
-const COMPLETE_PATH = "/onboarding/complete";
 
 /** Home-page website box: validate, then go to the questions. No account needed. */
 export async function startAssessmentAction(_prev: StartState, formData: FormData): Promise<StartState> {
@@ -23,16 +23,32 @@ export async function startAssessmentAction(_prev: StartState, formData: FormDat
   redirect(`/start?website=${encodeURIComponent(domain)}`);
 }
 
-/** The six questions: stored server-side for 24h, then sign-up is the last step. */
+/**
+ * The six questions: run the free assessment, keep the answers for 24h,
+ * and show the teaser. Account creation comes after (PRD §2.1).
+ */
 export async function saveAnswersAction(_prev: StartState, formData: FormData): Promise<StartState> {
   const parsed = answersSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: t.start.errors.invalid };
 
-  if (!(await consumeRateLimit(RATE_LIMITS.draftPerIp, await clientIp()))) {
-    return { error: t.start.errors.rateLimited };
+  const ip = await clientIp();
+  if (!(await verifyTurnstile(formData.get("cf-turnstile-response"), ip))) {
+    return { error: t.start.errors.botCheck };
   }
 
-  const token = await saveDraft(parsed.data);
+  let snapshotId: string;
+  try {
+    snapshotId = await assess(parsed.data, ip);
+  } catch (err) {
+    if (err instanceof AssessmentRateLimitedError) return { error: t.start.errors.rateLimited };
+    if (err instanceof AssessmentCapacityError || err instanceof SpendCapReachedError) {
+      return { error: t.start.errors.busy };
+    }
+    if (err instanceof AssessmentUnavailableError) return { error: t.start.errors.unavailable };
+    throw err;
+  }
+
+  const token = await saveDraft({ ...parsed.data, snapshotId });
   (await cookies()).set(DRAFT_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -40,7 +56,5 @@ export async function saveAnswersAction(_prev: StartState, formData: FormData): 
     path: "/",
     maxAge: 24 * 60 * 60,
   });
-
-  if ((await auth())?.user) redirect(COMPLETE_PATH);
-  redirect(`/login?callbackUrl=${encodeURIComponent(COMPLETE_PATH)}`);
+  redirect(`/assessment/${snapshotId}`);
 }

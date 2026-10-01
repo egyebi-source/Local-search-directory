@@ -1,5 +1,6 @@
 "use client";
 
+import Script from "next/script";
 import { useActionState, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,15 @@ function Choices<T extends string>({ name, options, labels }: { name: string; op
   );
 }
 
-export function QuestionsForm({ website }: { website: string }) {
+export function QuestionsForm({
+  website,
+  turnstileSiteKey,
+  nonce,
+}: {
+  website: string;
+  turnstileSiteKey: string | null;
+  nonce?: string;
+}) {
   const [state, action, pending] = useActionState<StartState, FormData>(saveAnswersAction, {});
   const [step, setStep] = useState(0);
   const stepRefs = useRef<(HTMLFieldSetElement | null)[]>([]);
@@ -54,7 +63,15 @@ export function QuestionsForm({ website }: { website: string }) {
     },
     {
       title: q.serviceArea,
-      body: <Input aria-label={o.serviceArea} name="serviceArea" required minLength={2} maxLength={100} placeholder={o.serviceAreaHint} />,
+      body: (
+        <div className="flex flex-col gap-4">
+          <Input aria-label={o.serviceArea} name="serviceArea" required minLength={2} maxLength={100} placeholder={o.serviceAreaHint} />
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium">{t.start.country.label}</legend>
+            <Choices name="country" options={["CA", "US"] as const} labels={t.start.country} />
+          </fieldset>
+        </div>
+      ),
     },
     {
       title: q.goal,
@@ -72,7 +89,13 @@ export function QuestionsForm({ website }: { website: string }) {
     },
     {
       title: q.manager,
-      body: <Choices name="websiteManager" options={["self", "agency", "nobody"] as const} labels={o.manager} />,
+      body: (
+        <div className="flex flex-col gap-4">
+          <Choices name="websiteManager" options={["self", "agency", "nobody"] as const} labels={o.manager} />
+          {/* Cloudflare's bot check; it adds a hidden "cf-turnstile-response" field to the form. */}
+          {turnstileSiteKey ? <div className="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="auto" /> : null}
+        </div>
+      ),
     },
   ];
   const last = steps.length - 1;
@@ -85,6 +108,9 @@ export function QuestionsForm({ website }: { website: string }) {
 
   return (
     <form action={action} className="flex flex-col gap-6">
+      {turnstileSiteKey ? (
+        <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" nonce={nonce} />
+      ) : null}
       <div>
         <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{t.start.stepOf(step + 1, steps.length)}</p>
         <div className="mt-2 grid grid-cols-6 gap-1.5" aria-hidden="true">
@@ -125,7 +151,7 @@ export function QuestionsForm({ website }: { website: string }) {
           </Button>
         ) : (
           <Button type="submit" disabled={pending} className="bg-amber-500 text-slate-950 hover:bg-amber-400">
-            {t.start.finish}
+            {pending ? t.start.analyzing : t.start.finish}
           </Button>
         )}
       </div>

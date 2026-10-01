@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
 import { z } from "zod";
 import { getDb } from "./client";
-import { auditLog, memberships, organizations, type MembershipRole } from "./schema";
+import { auditLog, memberships, orgAssessments, organizations, type MembershipRole } from "./schema";
 
 type OrgInsert = typeof organizations.$inferInsert;
 
@@ -83,11 +83,15 @@ export async function listUserOrganizations(userId: string) {
 /** What the app may set on a new org. Trial and billing columns are excluded on purpose. */
 export type NewOrganization = Pick<
   OrgInsert,
-  "name" | "websiteDomain" | "serviceArea" | "category" | "primaryGoal" | "adSpendRange" | "websiteManager"
+  "name" | "websiteDomain" | "serviceArea" | "category" | "primaryGoal" | "adSpendRange" | "websiteManager" | "country"
 >;
 
 /** Create an organization with `userId` as its first owner. Starts the 7-day trial (a DB default). */
-export async function createOrganization(userId: string, input: NewOrganization): Promise<string> {
+export async function createOrganization(
+  userId: string,
+  input: NewOrganization,
+  attach?: { assessment: Record<string, unknown> },
+): Promise<string> {
   const uid = parseId(userId);
   const orgId = uuidv7();
   await getDb().transaction(async (tx) => {
@@ -98,13 +102,14 @@ export async function createOrganization(userId: string, input: NewOrganization)
     // billing_column_grants migration). Drizzle's insert would list them all.
     await tx.execute(sql`
       INSERT INTO organizations
-        (id, name, website_domain, service_area, category, primary_goal, ad_spend_range, website_manager)
+        (id, name, website_domain, service_area, category, primary_goal, ad_spend_range, website_manager, country)
       VALUES
         (${orgId}, ${input.name}, ${input.websiteDomain ?? null}, ${input.serviceArea ?? null},
          ${input.category ?? null}, ${input.primaryGoal ?? null}, ${input.adSpendRange ?? null},
-         ${input.websiteManager ?? null})`);
+         ${input.websiteManager ?? null}, ${input.country ?? null})`);
     await tx.insert(memberships).values({ orgId, userId: uid, role: "owner" });
     await tx.insert(auditLog).values({ orgId, actorUserId: uid, action: "org.created" });
+    if (attach) await tx.insert(orgAssessments).values({ orgId, resultJson: attach.assessment });
   });
   return orgId;
 }

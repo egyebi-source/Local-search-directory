@@ -23,6 +23,19 @@ const serverEnvSchema = z.object({
   GOOGLE_LOGIN_CLIENT_SECRET: optional(z.string().min(1)),
   RESEND_API_KEY: optional(z.string().startsWith("re_")),
   EMAIL_FROM: optional(z.string().min(3)),
+
+  // Assessment (Phase 2). DataForSEO stays on its free sandbox (dummy data)
+  // unless DATAFORSEO_MODE=live is set deliberately.
+  DATAFORSEO_LOGIN: optional(z.string().min(1)),
+  DATAFORSEO_PASSWORD: optional(z.string().min(1)),
+  DATAFORSEO_MODE: z.enum(["sandbox", "live"]).default("sandbox"),
+  GEMINI_API_KEY: optional(z.string().min(1)),
+  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
+  DAILY_SPEND_CAP_DATAFORSEO_CENTS: z.coerce.number().int().min(0).default(200),
+  DAILY_SPEND_CAP_GEMINI_CENTS: z.coerce.number().int().min(0).default(100),
+  ASSESSMENTS_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(3),
+  ASSESSMENTS_GLOBAL_PER_DAY: z.coerce.number().int().min(1).default(50),
+  TURNSTILE_SECRET_KEY: optional(z.string().min(1)),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -40,6 +53,8 @@ export function parseServerEnv(source: Record<string, string | undefined>): Serv
 let cached: ServerEnv | undefined;
 
 export function serverEnv(): ServerEnv {
+  // Tests change variables between cases, so don't cache there.
+  if (process.env.NODE_ENV === "test") return parseServerEnv(process.env);
   cached ??= parseServerEnv(process.env);
   return cached;
 }
