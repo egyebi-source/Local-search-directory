@@ -21,7 +21,8 @@ export function buildPageCsp(nonce: string, isDev: boolean): string {
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    // Google sign-in: the login form's POST redirects to Google's consent page.
+    "form-action 'self' https://accounts.google.com",
     "frame-ancestors 'none'",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ];

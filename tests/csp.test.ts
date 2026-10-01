@@ -26,7 +26,7 @@ describe("buildPageCsp (production)", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("base-uri 'self'");
-    expect(csp).toContain("form-action 'self'");
+    expect(csp).toContain("form-action 'self' https://accounts.google.com;");
   });
 });
 

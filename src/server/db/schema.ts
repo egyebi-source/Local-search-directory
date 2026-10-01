@@ -1,3 +1,168 @@
-// Drizzle table definitions (PRD §7). Tables, RLS policies and the
-// app_user role grants arrive in Phase 1.
-export {};
+import { sql } from "drizzle-orm";
+import {
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { uuidv7 } from "uuidv7";
+
+// Drizzle table definitions (PRD §7).
+//
+// Two kinds of table:
+// - Global tables (users and Auth.js tables, rate_limits) have no org_id.
+// - Tenant tables carry org_id and are protected by row-level security
+//   (see the RLS migration in drizzle/). Every tenant table needs an isolation test.
+
+const id = () => uuid("id").primaryKey().$defaultFn(() => uuidv7());
+const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+
+// --- Global: people and login (Auth.js) -------------------------------------
+
+export const users = pgTable(
+  "users",
+  {
+    id: id(),
+    name: text("name"),
+    email: text("email").notNull(),
+    emailVerified: timestamp("email_verified", { withTimezone: true, mode: "date" }),
+    image: text("image"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`)],
+);
+
+// Login provider links. Token columns exist only because Auth.js expects
+// them; our adapter wrapper always stores NULL there (see server/auth/adapter.ts).
+export const accounts = pgTable(
+  "accounts",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").$type<"oauth" | "oidc" | "email" | "webauthn">().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.provider, t.providerAccountId] }),
+    index("accounts_user_id_idx").on(t.userId),
+  ],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    sessionToken: text("session_token").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (t) => [index("sessions_user_id_idx").on(t.userId)],
+);
+
+// Auth.js stores a hash of the sign-in link token here, never the token itself.
+export const verificationTokens = pgTable(
+  "verification_tokens",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+);
+
+// Fixed-window counters for rate limiting (login emails, invites).
+// Keys are SHA-256 hashes, so no email addresses or IPs are stored here.
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull(),
+});
+
+// --- Tenant: organizations ----------------------------------------------------
+
+export const membershipRole = pgEnum("membership_role", ["owner", "member"]);
+export type MembershipRole = (typeof membershipRole.enumValues)[number];
+
+export const organizations = pgTable("organizations", {
+  id: id(),
+  name: text("name").notNull(),
+  websiteDomain: text("website_domain"),
+  serviceArea: text("service_area"),
+  category: text("category"),
+  createdAt: createdAt(),
+});
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: membershipRole("role").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.orgId, t.userId] }),
+    index("memberships_user_id_idx").on(t.userId),
+  ],
+);
+
+export const invites = pgTable(
+  "invites",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: membershipRole("role").notNull().default("member"),
+    // SHA-256 of the invite token. The token itself exists only in the email.
+    tokenHash: text("token_hash").notNull(),
+    invitedByUserId: uuid("invited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("invites_token_hash_idx").on(t.tokenHash),
+    index("invites_org_id_idx").on(t.orgId),
+  ],
+);
+
+// Append-only: the app role may insert and read, never update or delete.
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    metadataJson: jsonb("metadata_json").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_log_org_id_created_at_idx").on(t.orgId, t.createdAt)],
+);
