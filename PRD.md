@@ -121,7 +121,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 ### Module 10 — Trial, billing and lifecycle
 - FR-10.1 Trial: 7 days from organization creation (gate completion). No card required. One trial per organization; a user may not start a new trial for the same website domain within 90 days (abuse control).
 - FR-10.2 Status per org: `trialing` → `active` (paid) or `locked` (trial ended unpaid, or payment failed past Stripe's retry period) → `deleted`. `past_due` keeps access during Stripe's retry window.
-- FR-10.3 Plans: monthly and annual (prices TBD by owner). Subscribe via Stripe Checkout; manage/cancel via Stripe Customer Portal. Only owners see billing.
+- FR-10.3 Plans: **Monthly $49 CAD** and **Annual $490 CAD** (two months free), taxes extra (Stripe Tax). Subscribe via Stripe Checkout; manage/cancel via Stripe Customer Portal. Only owners see billing.
 - FR-10.4 Stripe webhooks are the source of truth for subscription status. Verify every webhook signature; process idempotently (store event ids); never trust plan or price data from the browser.
 - FR-10.5 Locked org: every dashboard page shows only the lock screen and "Add a card to unlock"; data sync stops. Owners can still export or delete their data.
 - FR-10.6 30 days after locking (or immediately on owner request): revoke Google tokens, hard-delete org data (as FR-8.2). Email reminders: trial day 5, day 7, lock day, and 7 days before deletion.
@@ -291,6 +291,6 @@ tests/
 
 ## 14. Open questions for the owner
 1. ~~Product name~~ — **TorqueRank** (decided; trademark check by counsel pending). Domains: torquerank.ca (primary) + torquerank.com (available, not yet purchased).
-2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. **Still open: the monthly and annual prices**, and whether plans differ (e.g., number of locations/properties).
+2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. Prices decided: **$49 CAD/month or $490 CAD/year** (two months free), plus applicable sales tax (GST/HST/QST via Stripe Tax). Still open: whether plans later differ (e.g., number of locations/properties).
 3. Which email address becomes the Google Cloud and Vercel owner account (should be a company account, not personal, with 2-step verification on).
 4. Legal review of privacy policy and terms before Google verification.

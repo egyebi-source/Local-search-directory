@@ -54,6 +54,19 @@ const TRADES = [
   "Custom manufacturing",
 ];
 
+const PLANS = [
+  { name: "Monthly", price: "$49", period: "/month", note: "Billed monthly", highlight: false },
+  { name: "Annual", price: "$490", period: "/year", note: "About $40.83 a month, billed yearly", highlight: true },
+];
+
+const INCLUDED = [
+  "Full dashboard for one business",
+  "Competitor ad intelligence for your area",
+  "Google Search Console & Analytics connection",
+  "Rescue targets and weekly action checklist",
+  "Invite your team or agency",
+];
+
 function Icon({ d }: { d: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -174,6 +187,51 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-20" aria-labelledby="pricing">
+        <h2 id="pricing" className="text-center text-3xl font-bold tracking-tight">
+          Simple pricing
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-slate-600 dark:text-slate-300">
+          Start with a free 7-day trial of the full dashboard. No credit card. Cancel any time.
+        </p>
+        <div className="mx-auto mt-10 grid max-w-3xl gap-6 md:grid-cols-2">
+          {PLANS.map((p) => (
+            <div
+              key={p.name}
+              className={
+                p.highlight
+                  ? "relative flex flex-col rounded-2xl bg-slate-950 p-8 text-white ring-2 ring-amber-500"
+                  : "flex flex-col rounded-2xl bg-white p-8 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+              }
+            >
+              {p.highlight ? (
+                <span className="absolute -top-3 left-8 rounded-full bg-amber-500 px-3 py-0.5 text-xs font-semibold text-slate-950">
+                  2 months free
+                </span>
+              ) : null}
+              <h3 className="text-lg font-semibold">{p.name}</h3>
+              <p className="mt-4 flex items-baseline gap-1">
+                <span className="text-4xl font-bold tracking-tight">{p.price}</span>
+                <span className={p.highlight ? "text-slate-300" : "text-slate-600 dark:text-slate-400"}>{p.period}</span>
+              </p>
+              <p className={p.highlight ? "mt-1 text-sm text-slate-300" : "mt-1 text-sm text-slate-600 dark:text-slate-400"}>{p.note}</p>
+              <ul className="mt-6 flex flex-col gap-2 text-sm">
+                {INCLUDED.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12l5 5L20 7" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">Prices in Canadian dollars. Applicable taxes extra.</p>
+      </section>
+
       {/* Final CTA */}
       <section className="bg-slate-950 text-white" aria-labelledby="cta">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center">
@@ -181,8 +239,7 @@ export default function Home() {
             See what you&apos;re missing in under a minute
           </h2>
           <p className="mt-4 text-lg text-slate-300">
-            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Simple monthly or yearly plans
-            after that.
+            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then $49/month or $490/year.
           </p>
           <WebsiteForm id="cta-website" className="mt-8 max-w-xl" />
         </div>
