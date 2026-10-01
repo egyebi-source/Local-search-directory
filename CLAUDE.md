@@ -1,6 +1,6 @@
 # CLAUDE.md — Instructions for Claude Code
 
-Product name: **SEO Max** (a local search growth dashboard). Full spec in `PRD.md`.
+Product name: **TorqueRank** (a local search growth dashboard). Full spec in `PRD.md`.
 
 Read this file at the start of every session. The full product spec is in `PRD.md`. Read it before starting any phase.
 

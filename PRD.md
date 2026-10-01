@@ -1,4 +1,4 @@
-# PRD — SEO Max (Local Search Growth Dashboard)
+# PRD — TorqueRank (Local Search Growth Dashboard)
 
 Version 1.0 · Owner: Emmanuel · Stack: Next.js on Vercel + Neon Postgres
 
@@ -260,7 +260,7 @@ tests/
 - [ ] `npm audit` shows no high/critical issues
 
 ## 14. Open questions for the owner
-1. ~~Product name~~ — **SEO Max** (decided). Domain: still open.
+1. ~~Product name~~ — **TorqueRank** (decided; trademark check by counsel pending). Domains: torquerank.ca (primary) + torquerank.com (available, not yet purchased).
 2. Pricing and whether the free tier limits connected properties.
 3. Which email address becomes the Google Cloud and Vercel owner account (should be a company account, not personal, with 2-step verification on).
 4. Legal review of privacy policy and terms before Google verification.

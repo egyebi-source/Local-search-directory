@@ -1,4 +1,4 @@
-# SEO Max
+# TorqueRank
 
 Helps small businesses see whether their online presence produces clicks, visits and leads, and
 what to fix this week. Full spec: [`PRD.md`](PRD.md). Rules for AI-assisted work: [`CLAUDE.md`](CLAUDE.md).
