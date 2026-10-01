@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { getSnapshot } from "@/server/assessment/snapshots";
 import { createOrganization } from "@/server/db/tenant";
-import { consumeDraft, DRAFT_COOKIE } from "@/server/onboarding/drafts";
+import { consumeClaimedDraft, consumeDraft, DRAFT_COOKIE } from "@/server/onboarding/drafts";
 import { setCurrentOrgCookie } from "@/server/org/current";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 /**
  * Where sign-in lands after the questions: turns the visitor's saved answers
  * into their organization (starting the 7-day trial) and opens the dashboard.
- * Only ever uses the caller's own draft cookie.
+ * Uses the caller's own draft cookie, or, if the sign-in link was opened in
+ * another browser, the draft claimed by this (just verified) email address.
  */
 export async function GET() {
   const session = await auth();
@@ -21,7 +22,9 @@ export async function GET() {
   const jar = await cookies();
   const token = jar.get(DRAFT_COOKIE)?.value;
   jar.delete(DRAFT_COOKIE);
-  const answers = token && /^[A-Za-z0-9_-]{43}$/.test(token) ? await consumeDraft(token) : null;
+  const fromCookie = token && /^[A-Za-z0-9_-]{43}$/.test(token) ? await consumeDraft(token) : null;
+  const email = session?.user?.email;
+  const answers = fromCookie ?? (email ? await consumeClaimedDraft(email) : null);
   if (!answers) redirect("/start");
 
   // Copy the assessment they saw into their (row-level-secured) org data.

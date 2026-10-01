@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { answersFromForm, answersSchema } from "@/server/onboarding/answers";
-import { consumeDraft, saveDraft } from "@/server/onboarding/drafts";
+import { claimDraft, consumeClaimedDraft, consumeDraft, saveDraft } from "@/server/onboarding/drafts";
 import { asOwner, hasDb } from "./helpers";
 
 const answers = answersSchema.parse({
@@ -77,4 +77,33 @@ describe.runIf(hasDb)("pre-sign-up drafts", () => {
     await asOwner((c) => c.query(`UPDATE assessment_drafts SET answers = answers || '{"goals":["hacked"]}'`));
     expect(await consumeDraft(token)).toBeNull();
   });
+
+  it("lets the sign-in email finish sign-up from another browser, once", async () => {
+    const token = await saveDraft(answers);
+    await claimDraft(token, " Owner@Acme.ca ");
+    // The emailed link is opened where the draft cookie doesn't exist.
+    expect(await consumeClaimedDraft("someone@else.ca")).toBeNull();
+    expect(await consumeClaimedDraft("owner@acme.ca")).toEqual(answers);
+    expect(await consumeClaimedDraft("owner@acme.ca")).toBeNull();
+    expect(await consumeDraft(token)).toBeNull();
+  });
+
+  it("stores only a hash of the email, and claims go stale", async () => {
+    const token = await saveDraft(answers);
+    await claimDraft(token, "owner@acme.ca");
+    const rows = await asOwner(async (c) => (await c.query("SELECT email_hash FROM assessment_drafts")).rows);
+    expect(JSON.stringify(rows)).not.toContain("acme");
+    await asOwner((c) => c.query("UPDATE assessment_drafts SET claimed_at = now() - interval '31 minutes'"));
+    expect(await consumeClaimedDraft("owner@acme.ca")).toBeNull();
+    await consumeDraft(token);
+  });
+
+  it("the app role can tag a draft but not rewrite its answers", async () => {
+    const token = await saveDraft(answers);
+    const { getDb } = await import("@/server/db/client");
+    const { sql } = await import("drizzle-orm");
+    await expect(getDb().execute(sql`UPDATE assessment_drafts SET answers = '{}'::jsonb`)).rejects.toThrow();
+    await consumeDraft(token);
+  });
 });
+

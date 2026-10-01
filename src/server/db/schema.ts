@@ -202,15 +202,23 @@ export const auditLog = pgTable(
 // Answers a visitor gives before creating an account (PRD §2.1). Held for
 // 24 hours, keyed by the SHA-256 of a random token kept in an httpOnly
 // cookie, and deleted the moment they're turned into an organization.
+// When the visitor asks for a sign-in link, the draft is also tagged with a
+// hash of that email, so the link can finish sign-up in another browser
+// (e.g. answers given in an in-app browser, email opened in Safari).
 export const assessmentDrafts = pgTable(
   "assessment_drafts",
   {
     tokenHash: text("token_hash").primaryKey(),
     answers: jsonb("answers").$type<Record<string, unknown>>().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    emailHash: text("email_hash"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("assessment_drafts_expires_at_idx").on(t.expiresAt)],
+  (t) => [
+    index("assessment_drafts_expires_at_idx").on(t.expiresAt),
+    index("assessment_drafts_email_hash_idx").on(t.emailHash, t.claimedAt),
+  ],
 );
 
 // --- Global: public assessments (PRD Module 1) ----------------------------------
