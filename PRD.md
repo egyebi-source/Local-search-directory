@@ -242,7 +242,9 @@ DAILY_SPEND_CAP_GEMINI_CENTS=
 - Dashboard loads from cached data in < 2 s (p75). No live Google calls on page load.
 - 99.5% monthly uptime target.
 - Accessibility: WCAG 2.1 AA basics (contrast, labels, keyboard navigation).
-- English at launch; French-ready (all strings in a translation file) for Quebec.
+- **Launch markets: English Canada and the United States.** English only at launch.
+- **Quebec is out of scope at launch.** Selling to Quebec businesses requires French (Charter of the French Language / Bill 96: website, app, contracts, invoices, support) plus Law 25 privacy work. Until a French version and legal review are done: terms state the service is not offered in Quebec, and a business or billing address in Quebec gets a "Coming soon to Quebec — join the waitlist" screen instead of a paid plan (built with Module 10). The app stays French-ready: every user-facing string lives in a translation file.
+- US sales tax: Stripe Tax monitors state thresholds; owner confirms registration timing with an accountant.
 - Canadian privacy: PIPEDA-aligned privacy policy; Quebec Law 25 considerations reviewed by counsel before marketing in Quebec.
 
 ## 11. Suggested folder structure
