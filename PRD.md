@@ -131,6 +131,23 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-10.6 30 days after locking (or immediately on owner request): revoke Google tokens, hard-delete org data (as FR-8.2). Email reminders: trial day 5, day 7, lock day, and 7 days before deletion.
 - FR-10.7 A daily cron applies trial expiry and scheduled deletions; the dashboard also checks status on every request so access never depends on the cron having run.
 
+### Module 12 — Wins: experiments and before/after proof (the core loop)
+The product's promise: **measurable improvement, shown as before/after proof.** Loop: baseline → specific change → customer applies → measure → report.
+- FR-12.1 **Baseline snapshot** saved when Google is first connected: Search Console (up to 16 months, by query and page), GA4 visitors and key events, tracked positions for the org's chosen searches, and a capture of the Google results for its main searches. Baselines are immutable and dated.
+- FR-12.2 **Tracked searches:** each org picks (or accepts suggested) 10–20 high-value searches; positions checked daily via DataForSEO (counts toward spend caps).
+- FR-12.3 **Change items** (from Module 7) are concrete and ready to paste: page title/meta rewrites for high-impression, low-CTR pages; improvements to pages ranking 11–30; new page drafts; Google Business Profile items (post, categories, services, review-reply drafts). Each shows the expected value (search volume × CPC) and expected time to impact (days/weeks, stated honestly).
+- FR-12.4 **"I did this"** starts an experiment: applied date, target page(s) and searches. Optional URL check confirms the change is live (fetches the page server-side, compares title/meta; SSRF-safe: public http(s) on the org's own domain only).
+- FR-12.5 **Impact reports** at 7, 14, 28 and 56 days: position, clicks, impressions, CTR for targets vs. baseline, compared against the org's unchanged pages (control) to discount seasonality. Labels Search Console's 2–3 day delay. Never claims causation beyond "after this change".
+- FR-12.6 **Before/after cards:** saved permanently, shareable via an unguessable link (opt-in, revocable), showing metric change and "worth about $X/month in ads" (estimate, labeled).
+- FR-12.7 **Weekly email:** wins this week, active experiments, new suggestions.
+
+### Module 13 — SEO agent (assistant that works on the customer's behalf)
+Delivered in stages; each stage is a separate approval.
+- FR-13.1 **Stage A — Advisor agent (launch):** runs weekly per org. Reads the org's synced data, tracked positions and experiment results; proposes the next best changes, drafts them (Module 12), follows up on experiments ("your title change is 14 days old — clicks +38%"), and answers questions in an in-app chat grounded only in that org's data.
+- FR-13.2 **Stage B — Apply with approval (post-launch):** one-click apply to WordPress (application password or plugin) and Google Business Profile (requires Google API access approval). Every action is shown as a diff, needs the owner's explicit approval, is logged, and has an undo. Requires owner approval of new write scopes (changes CLAUDE.md rule 8 and Google verification).
+- FR-13.3 **Agent safety:** the agent has a fixed list of tools, each scoped to one org via `withOrg`; no free-form web browsing or shell; competitor and web content is untrusted data (never instructions); per-org daily action and spend limits; all tool calls written to the audit log; prompts and outputs validated with Zod. No action that publishes or spends money without human approval.
+- FR-13.4 Model: Gemini by default (existing key and spend caps); provider kept behind one interface so it can be swapped.
+
 ### Module 11 — Networks and agencies (planned, design with owner before building)
 Who it's for: (a) networks of independent local businesses (e.g. Collision Collective and its member shops), (b) agencies/freelancers managing many clients. Both need one login over many businesses.
 - FR-11.1 A **network** groups many organizations. Network admins see a roll-up (per-location assessments, rescue targets, trends) and can open any member location they've been granted.
@@ -139,9 +156,13 @@ Who it's for: (a) networks of independent local businesses (e.g. Collision Colle
 - FR-11.4 Billing options to decide: network pays per location (e.g. member benefit), or members pay individually with a network discount. White-label/co-branded reports for networks and agencies.
 - FR-11.5 Open decisions for the owner: per-location price, who owns a location's data if it leaves the network (default: the location), what network admins may see (default: summaries, not raw Google data, unless the location opts in).
 
-### Module 9 — Admin
-- FR-9.1 Admin page (role-gated) showing sync success rates, failing orgs by error code, API spend vs. caps.
-- FR-9.2 No admin view of an org's Google metrics.
+### Module 9 — Admin dashboard (TorqueRank staff only)
+- FR-9.1 Separate area at `/admin`, reachable only by users on a platform-admin allowlist stored in the database (not by any customer role). Admin sign-in requires a passkey or Google sign-in with 2-step verification; sessions expire after 8 hours.
+- FR-9.2 Business view: visitors → assessments → sign-ups → Google connected → paid (funnel), trials ending, MRR, churn, top categories and cities.
+- FR-9.3 Operations view: sync success rates, failing orgs by error code, API spend vs. daily caps (DataForSEO, Gemini), rate-limit hits, Turnstile failures, email delivery failures.
+- FR-9.4 Customer list: org name, plan status, trial end, created, last active, Google connected (yes/no). Actions: extend trial, unlock, schedule deletion — each requires a typed reason and is written to an append-only admin audit log.
+- FR-9.5 Privacy: admins never see an org's Google metrics, tokens or AI drafts by default. "View as customer" is out of scope for launch; if added later it requires the customer's in-app consent, is time-limited and audited.
+- FR-9.6 Admin queries run through a dedicated database function/role with read access limited to the columns above; they never bypass RLS for tenant data tables.
 
 ## 6. Google integration details
 
@@ -286,9 +307,12 @@ tests/
 | 3. Google connect | Data OAuth flow, encryption, property picker, disconnect/revoke | Token never appears in logs, responses, or DB plaintext |
 | 4. Sync | Cron, fan-out, backfill, retries, `sync_runs`, reauth handling | Cron without secret → 401; revoked token → `needs_reauth` |
 | 5. Dashboard | Cards, charts, queries table, stale-data banner | Works with GSC only, GA4 only, both, neither |
-| 6. Gaps & AI | Keyword gap scoring, Rescue Targets, checklist | Zod-invalid AI output rejected; injection test string in competitor copy has no effect |
-| 6b. Billing & lifecycle | Stripe Checkout/Portal, webhooks, lock/unlock, reminder emails, 30-day deletion job | Forged webhook rejected; replayed webhook ignored; unpaid org locks on day 8 and is deleted on day 38 (time-travel test) |
+| 6. AI change writer | Keyword gap scoring, Rescue Targets, ready-to-paste change items (titles/meta, page drafts, GBP items) ranked by value | Zod-invalid AI output rejected; injection test string in competitor copy has no effect |
+| 6b. Wins & experiments | Baseline snapshot, tracked searches (daily positions), "I did this" experiments, 7/14/28/56-day impact reports vs. control, before/after cards, weekly email, Advisor agent (Module 13 Stage A) | Baseline immutable; report math tested with fixtures; share links unguessable and revocable; agent cannot touch another org's data |
+| 6c. Billing & lifecycle | Stripe Checkout/Portal, webhooks, lock/unlock, reminder emails, 30-day deletion job | Forged webhook rejected; replayed webhook ignored; unpaid org locks on day 8 and is deleted on day 38 (time-travel test) |
+| 6d. Admin dashboard | Module 9: funnel, operations, customer list with audited actions | Non-admin gets 404; every admin action audited; no tenant Google data visible |
 | 7. Hardening & launch | Headers, Sentry, export/delete, privacy policy, Google verification package | Security checklist 100%; verification submitted |
+| 8. Agent apply (post-launch) | Module 13 Stage B: WordPress + Google Business Profile one-click apply with approval and undo | Owner approved write scopes; no action without approval; undo tested |
 
 ## 13. Security checklist (run at end of every phase)
 - [ ] No secret uses a `NEXT_PUBLIC_` prefix (except the Turnstile site key)
@@ -302,6 +326,8 @@ tests/
 - [ ] `npm audit` shows no high/critical issues
 - [ ] Locked/gated content is never sent to the browser (check page source and RSC payload)
 - [ ] Stripe webhooks verify signatures and are idempotent; no card data touches our servers
+- [ ] Admin routes return 404 to non-admins; admin actions are audited
+- [ ] Agent tools are org-scoped and cannot publish or spend without human approval
 
 ## 14. Open questions for the owner
 1. ~~Product name~~ — **TorqueRank** (decided; trademark check by counsel pending). Domains: torquerank.ca (primary) + torquerank.com (available, not yet purchased).
