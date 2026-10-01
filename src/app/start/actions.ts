@@ -44,7 +44,12 @@ export async function saveAnswersAction(_prev: StartState, formData: FormData): 
     if (err instanceof AssessmentCapacityError || err instanceof SpendCapReachedError) {
       return { error: t.start.errors.busy };
     }
-    if (err instanceof AssessmentUnavailableError) return { error: t.start.errors.unavailable };
+    if (err instanceof AssessmentUnavailableError) {
+      // On preview deployments only, show why (our own credential-free
+      // messages) so failures can be diagnosed without searching logs.
+      const why = process.env.VERCEL_ENV === "preview" && err.details.length ? ` [${err.details.join("; ")}]` : "";
+      return { error: t.start.errors.unavailable + why };
+    }
     throw err;
   }
 

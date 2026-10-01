@@ -9,7 +9,12 @@ import type { Answers } from "@/server/onboarding/answers";
 import type { Country } from "@/server/db/schema";
 import { opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult, type Market } from "./result";
 
-export class AssessmentUnavailableError extends Error {}
+/** `details` are our own credential-free failure reasons (see `settle`). */
+export class AssessmentUnavailableError extends Error {
+  constructor(public readonly details: string[] = []) {
+    super("All assessment lookups failed");
+  }
+}
 
 export type EngineDeps = {
   dataforseo: DataForSeoTransport;
@@ -18,7 +23,7 @@ export type EngineDeps = {
   now?: () => Date;
 };
 
-async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: boolean }> {
+async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: boolean; detail?: string }> {
   try {
     return { value: await p, ok: true };
   } catch (err) {
@@ -31,14 +36,14 @@ async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: bo
         : err instanceof z.ZodError
           ? `response format changed at ${err.issues[0]?.path.join(".") || "root"}`
           : err instanceof Error
-            ? err.name
+            ? `${err.name}${err.cause instanceof Error ? ` (${err.cause.name})` : ""}`
             : "unknown";
     console.warn("[assessment] lookup failed:", detail);
-    return { value: fallback, ok: false };
+    return { value: fallback, ok: false, detail };
   }
 }
 
-type MarketData = Omit<Market, "country"> & { country: Country; adText: string[]; ok: boolean };
+type MarketData = Omit<Market, "country"> & { country: Country; adText: string[]; ok: boolean; failures: string[] };
 
 async function lookupMarket(answers: Answers, country: Country, keyword: string, deps: EngineDeps): Promise<MarketData> {
   const [serp, ranked, values] = await Promise.all([
@@ -74,6 +79,7 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
   return {
     country,
     ok: serp.ok || ranked.ok || values.ok,
+    failures: [serp.detail, ranked.detail, values.detail].filter((d): d is string => !!d),
     adText: competitorAds.slice(0, 5).map((a) => `${a.title} — ${a.description}`),
     metrics: {
       advertisers: competitors.length,
@@ -93,7 +99,7 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
   const keyword = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
   // One set of lookups per country, in parallel; the first country leads.
   const markets = await Promise.all(answers.countries.map((c) => lookupMarket(answers, c, keyword, deps)));
-  if (!markets.some((m) => m.ok)) throw new AssessmentUnavailableError();
+  if (!markets.some((m) => m.ok)) throw new AssessmentUnavailableError([...new Set(markets.flatMap((m) => m.failures))]);
   const [main, ...others] = markets;
   const strip = (m: MarketData): Market => ({
     country: m.country,
