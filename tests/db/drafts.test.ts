@@ -88,12 +88,15 @@ describe.runIf(hasDb)("pre-sign-up drafts", () => {
     expect(await consumeDraft(token)).toBeNull();
   });
 
-  it("stores only a hash of the email, and claims go stale", async () => {
+  it("stores only a hash of the email, and claims end with the draft", async () => {
     const token = await saveDraft(answers);
     await claimDraft(token, "owner@acme.ca");
     const rows = await asOwner(async (c) => (await c.query("SELECT email_hash FROM assessment_drafts")).rows);
     expect(JSON.stringify(rows)).not.toContain("acme");
-    await asOwner((c) => c.query("UPDATE assessment_drafts SET claimed_at = now() - interval '31 minutes'"));
+    // An expired link followed by a new request hours later still works...
+    await asOwner((c) => c.query("UPDATE assessment_drafts SET claimed_at = now() - interval '3 hours'"));
+    // ...but not once the draft itself has expired.
+    await asOwner((c) => c.query("UPDATE assessment_drafts SET expires_at = now() - interval '1 minute'"));
     expect(await consumeClaimedDraft("owner@acme.ca")).toBeNull();
     await consumeDraft(token);
   });

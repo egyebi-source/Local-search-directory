@@ -7,8 +7,6 @@ import { draftSchema, type Draft } from "./answers";
 
 export const DRAFT_TTL_HOURS = 24;
 export const DRAFT_COOKIE = "tr_draft";
-/** How long after asking for a sign-in link the email can still claim the draft. */
-export const CLAIM_MINUTES = 30;
 
 /** Same normalization Auth.js applies to the sign-in email. */
 const emailHash = (email: string) => sha256Hex(`draft-email:${email.trim().toLowerCase()}`);
@@ -52,8 +50,9 @@ export async function claimDraft(token: string, email: string): Promise<void> {
 
 /**
  * Fallback when the draft cookie isn't in this browser: the most recent
- * draft claimed by this (now verified) email in the last CLAIM_MINUTES.
- * Read and deleted in one step, like consumeDraft.
+ * unexpired draft claimed by this (now verified) email. Covers links opened
+ * in another browser and expired links followed by a fresh request from
+ * anywhere. Read and deleted in one step, like consumeDraft.
  */
 export async function consumeClaimedDraft(email: string): Promise<Draft | null> {
   const db = getDb();
@@ -63,7 +62,6 @@ export async function consumeClaimedDraft(email: string): Promise<Draft | null> 
     .where(
       and(
         eq(assessmentDrafts.emailHash, emailHash(email)),
-        gt(assessmentDrafts.claimedAt, sql`now() - make_interval(mins => ${CLAIM_MINUTES})`),
         gt(assessmentDrafts.expiresAt, sql`now()`),
       ),
     )

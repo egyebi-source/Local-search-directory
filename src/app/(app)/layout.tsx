@@ -9,7 +9,8 @@ import { signOutAction, switchOrgAction } from "./app/actions";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const { orgs, current } = await currentOrganization(user);
-  if (!current) redirect("/start");
+  // No organization yet: finish sign-up from saved answers if there are any.
+  if (!current) redirect("/onboarding/complete");
 
   const access = await withOrg(user.id, current.id, (tx) => orgAccess(tx, current.id));
   if (access.kind === "locked") redirect("/locked");

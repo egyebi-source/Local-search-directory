@@ -24,7 +24,7 @@ export const en = {
       generic: "Sign-in didn't work. Try again, or use another method.",
       accountNotLinked:
         "This email already signed in another way. Use the same method as before (email link or Google).",
-      linkExpired: "That sign-in link is invalid or has expired. Request a new one.",
+      linkExpired: "That link has expired. For your security, sign-in links last 15 minutes and work once. Enter your email below for a fresh one. Your assessment is saved.",
     },
   },
   onboarding: {
