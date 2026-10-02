@@ -13,8 +13,19 @@ export function turnstileBypassed(): boolean {
   return env.NODE_ENV !== "production" && !env.VERCEL_ENV && process.env.TURNSTILE_DEV_BYPASS === "1";
 }
 
+/**
+ * The site key is read on the server at request time and passed to the form,
+ * so it doesn't need a NEXT_PUBLIC_ name (Vercel flags those). It's public by
+ * design (Cloudflare puts it in the page). NEXT_TURNSTILE_SITE_KEY is the name
+ * already saved in Vercel; NEXT_PUBLIC_ is kept for older setups.
+ */
 export function turnstileSiteKey(): string {
-  return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || TEST_SITE_KEY;
+  return (
+    process.env.TURNSTILE_SITE_KEY ||
+    process.env.NEXT_TURNSTILE_SITE_KEY ||
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+    TEST_SITE_KEY
+  );
 }
 
 function secretKey(): string | null {
