@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
-import { adminAuditRecent, adminCustomers, adminExtendTrial, adminOverview, isPlatformAdmin } from "@/server/admin/admin";
+import { adminAgencies, adminAuditRecent, adminCustomers, adminExtendTrial, adminOverview, adminPeople, isPlatformAdmin } from "@/server/admin/admin";
 import { getDb } from "@/server/db/client";
 import { platformAdmins } from "@/server/db/schema";
 import { createOrganization, withUser } from "@/server/db/tenant";
@@ -16,6 +16,18 @@ describe.runIf(hasDb)("admin dashboard", () => {
     customer = await createUser("customer");
     orgId = await createOrganization(customer.id, { name: "Acme Collision", websiteDomain: "acme.example", category: "Collision repair" });
     await asOwner((c) => c.query("INSERT INTO platform_admins (user_id) VALUES ($1)", [admin.id]));
+  });
+
+  it("lists everyone who signed up, even with nothing set up yet, and every agency", async () => {
+    const newcomer = await createUser("newcomer");
+    const people = await adminPeople(admin.id);
+    const n = people.find((p) => p.id === newcomer.id);
+    expect(n).toMatchObject({ email: newcomer.email, businesses: [], agencies: [], is_admin: false });
+    expect(people.find((p) => p.id === customer.id)?.businesses).toEqual([{ name: "Acme Collision", role: "owner" }]);
+    expect(people.find((p) => p.id === admin.id)?.is_admin).toBe(true);
+    expect(Array.isArray(await adminAgencies(admin.id))).toBe(true);
+    // No session tokens or other secrets in the rows.
+    expect(JSON.stringify(people)).not.toMatch(/session_token|sessionToken/);
   });
 
   it("only listed staff are admins", async () => {
@@ -37,6 +49,8 @@ describe.runIf(hasDb)("admin dashboard", () => {
       sql`SELECT admin_overview()`,
       sql`SELECT * FROM admin_customers(10)`,
       sql`SELECT * FROM admin_audit_recent(10)`,
+      sql`SELECT * FROM admin_people(10)`,
+      sql`SELECT * FROM admin_agencies(10)`,
       sql`SELECT admin_extend_trial(${orgId}::uuid, 30, 'please')`,
     ]) {
       await expectDbError(withUser(customer.id, (tx) => tx.execute(q)), /not a platform admin/);

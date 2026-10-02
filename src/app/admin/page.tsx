@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { accessState } from "@/server/billing/access";
-import { adminAuditRecent, adminCustomers, adminOverview } from "@/server/admin/admin";
+import { adminAgencies, adminAuditRecent, adminCustomers, adminOverview, adminPeople, type PersonRow } from "@/server/admin/admin";
 import { requireAdmin } from "@/server/admin/guard";
 import { isDemoEmail } from "@/server/demo/demo";
 import type { PlanStatus } from "@/server/db/schema";
@@ -20,6 +20,17 @@ function status(planStatus: string, trialEndsAt: string): string {
   return s.kind === "trialing" ? `trial · ${s.daysLeft}d left` : s.kind;
 }
 
+const ROLE: Record<string, string> = { owner: "owner", member: "member", agency: "via agency", staff: "staff" };
+const list = (xs: { name: string; role: string }[]) =>
+  xs.length ? xs.map((x) => `${x.name} (${ROLE[x.role] ?? x.role})`).join(", ") : "—";
+
+/** Where someone is in setting up, in plain words. */
+function stage(u: PersonRow): string {
+  if (u.agencies.length) return "Agency";
+  if (u.businesses.length) return "Business account";
+  return "Signed in, nothing set up yet";
+}
+
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
@@ -32,7 +43,14 @@ function Tile({ label, value }: { label: string; value: string | number }) {
 // Staff only. Non-admins get a 404 from requireAdmin().
 export default async function AdminPage() {
   const admin = await requireAdmin();
-  const [o, customers, audit, p] = await Promise.all([adminOverview(admin.id), adminCustomers(admin.id), adminAuditRecent(admin.id), getPricing()]);
+  const [o, customers, audit, p, people, agencies] = await Promise.all([
+    adminOverview(admin.id),
+    adminCustomers(admin.id),
+    adminAuditRecent(admin.id),
+    getPricing(),
+    adminPeople(admin.id),
+    adminAgencies(admin.id),
+  ]);
   const dollars = (c: number) => (c / 100).toFixed(2);
   const spend = Object.values(o.spend_today).reduce((a, b) => a + Number(b), 0);
 
@@ -60,9 +78,11 @@ export default async function AdminPage() {
       ) : null}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Funnel</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5 lg:grid-cols-9">
           <Tile label="Assessments (30 days)" value={o.assessments_30d} />
-          <Tile label="Accounts" value={o.orgs_total} />
+          <Tile label="People signed up" value={people.length} />
+          <Tile label="Businesses" value={o.orgs_total} />
+          <Tile label="Agencies" value={agencies.length} />
           <Tile label="In trial" value={o.orgs_trialing} />
           <Tile label="Paying" value={o.orgs_active} />
           <Tile label="Locked" value={o.orgs_locked} />
@@ -86,7 +106,7 @@ export default async function AdminPage() {
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">Day</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">Assessments</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Sign-ups</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">New businesses</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">API spend</th>
               </tr>
             </thead>
@@ -105,7 +125,76 @@ export default async function AdminPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Customers ({customers.length})</h2>
+        <h2 className="text-lg font-semibold">People ({people.length})</h2>
+        <p className="text-sm text-slate-600">Everyone who has signed in at least once, newest first, and where they are in setting up.</p>
+        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">People</caption>
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                {["Person", "Signed up", "Last active", "Stage", "Businesses", "Agencies"].map((h) => (
+                  <th key={h} scope="col" className="px-3 py-2 font-medium">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {people.map((u) => (
+                <tr key={u.id} className="align-top">
+                  <td className="px-3 py-2">
+                    <p className="font-medium break-all">{u.email}</p>
+                    {u.name ? <p className="text-xs text-slate-500">{u.name}</p> : null}
+                    {u.is_admin ? <p className="text-xs font-medium text-rose-700">Admin</p> : null}
+                  </td>
+                  <td className="px-3 py-2 text-xs">{day(u.created_at)}</td>
+                  <td className="px-3 py-2 text-xs">{u.last_active ? day(u.last_active) : "—"}</td>
+                  <td className="px-3 py-2 text-xs">{stage(u)}</td>
+                  <td className="px-3 py-2 text-xs">{list(u.businesses)}</td>
+                  <td className="px-3 py-2 text-xs">{list(u.agencies)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Agencies ({agencies.length})</h2>
+        {agencies.length ? (
+          <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Agencies</caption>
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  {["Agency", "Owner", "Status", "Started", "Team", "Locations"].map((h) => (
+                    <th key={h} scope="col" className="px-3 py-2 font-medium">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {agencies.map((a) => (
+                  <tr key={a.id}>
+                    <td className="px-3 py-2 font-medium">{a.name}</td>
+                    <td className="px-3 py-2 text-xs break-all">{a.owner_email ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs">{status(a.plan_status, a.trial_ends_at)}</td>
+                    <td className="px-3 py-2 text-xs">{day(a.created_at)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{a.members}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{a.locations}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600">No agencies yet.</p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Businesses ({customers.length})</h2>
         <p className="text-sm text-slate-600">
           Business details and status only. Customers&apos; Google data is never shown here. Every action is logged with your reason.
         </p>

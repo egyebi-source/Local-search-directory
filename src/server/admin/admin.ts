@@ -63,6 +63,39 @@ export async function adminCustomers(userId: string, limit = 200): Promise<Custo
   return r.rows;
 }
 
+export type PersonRow = {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+  last_active: string | null;
+  is_admin: boolean;
+  businesses: { name: string; role: string }[];
+  agencies: { name: string; role: string }[];
+};
+
+export type AgencyRow = {
+  id: string;
+  name: string;
+  plan_status: string;
+  trial_ends_at: string;
+  created_at: string;
+  owner_email: string | null;
+  members: number;
+  locations: number;
+};
+
+/** Everyone who has signed up, including people with no business or agency yet. */
+export async function adminPeople(userId: string, limit = 500): Promise<PersonRow[]> {
+  const r = await withUser(userId, (tx) => tx.execute<PersonRow>(sql`SELECT * FROM admin_people(${limit})`));
+  return r.rows;
+}
+
+export async function adminAgencies(userId: string, limit = 200): Promise<AgencyRow[]> {
+  const r = await withUser(userId, (tx) => tx.execute<AgencyRow>(sql`SELECT * FROM admin_agencies(${limit})`));
+  return r.rows;
+}
+
 export async function adminAuditRecent(userId: string, limit = 50): Promise<AuditRow[]> {
   const r = await withUser(userId, (tx) => tx.execute<AuditRow>(sql`SELECT * FROM admin_audit_recent(${limit})`));
   return r.rows;
