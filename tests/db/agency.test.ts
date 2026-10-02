@@ -83,6 +83,12 @@ describe.runIf(hasDb)("agencies (PRD Module 11)", () => {
     });
   });
 
+  it("for a location it set up, with no owner yet, the agency can invite the business owner", async () => {
+    await withOrg(sam.id, created, async (tx, ctx) => {
+      await expect(createInvite(tx, ctx, { email: "boss@kanataautobody.test", role: "owner" })).resolves.toMatchObject({ token: expect.any(String) });
+    });
+  });
+
   it("agency staff can open the agency's locations too; nobody else can", async () => {
     expect(await withOrg(kim.id, created, async (_tx, ctx) => ctx.role)).toBe("agency");
     await expect(withOrg(eve.id, created, async () => "leak")).rejects.toBeInstanceOf(NotMemberError);
@@ -112,9 +118,11 @@ describe.runIf(hasDb)("agencies (PRD Module 11)", () => {
     expect(await connectLocation(eve.id, otherAgency, code)).toBeNull();
   });
 
-  it("an agency can invite the business owner, but can't change the team or billing", async () => {
+  it("an agency can invite members to a business that has an owner, but not owners, and can't change the team", async () => {
     await withOrg(sam.id, danaShop, async (tx, ctx) => {
-      await expect(createInvite(tx, ctx, { email: "boss@kanataautobody.test", role: "owner" })).resolves.toMatchObject({ token: expect.any(String) });
+      // Dana's shop already has an owner: the agency may invite members, never another owner.
+      await expect(createInvite(tx, ctx, { email: "sam@agency.test", role: "owner" })).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(createInvite(tx, ctx, { email: "helper@agency.test", role: "member" })).resolves.toMatchObject({ token: expect.any(String) });
       await expect(removeMember(tx, ctx, dana.id)).rejects.toBeInstanceOf(ForbiddenError);
     });
   });

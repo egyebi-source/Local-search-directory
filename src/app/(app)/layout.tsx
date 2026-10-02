@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/app/assessment">{t.app.nav.assessment}</Link>
             <Link href="/app/google">Google data</Link>
             <Link href="/app/team">{t.app.nav.team}</Link>
+            <Link href="/help">Help</Link>
             <Link href="/app/billing">{t.app.nav.billing}</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">

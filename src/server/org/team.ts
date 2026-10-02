@@ -68,6 +68,9 @@ export async function createInvite(
   input: { email: string; role: MembershipRole },
 ): Promise<{ inviteId: string; token: string }> {
   if (!canInvite(ctx)) throw new ForbiddenError();
+  // An agency may hand an account to its owner, but never make anyone an
+  // owner of a business that already has one (that would let it take over).
+  if (ctx.role === "agency" && input.role === "owner" && (await ownerCount(tx, ctx)) > 0) throw new ForbiddenError();
   const email = input.email.trim().toLowerCase();
 
   const [existing] = await tx

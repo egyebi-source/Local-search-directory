@@ -16,6 +16,7 @@ export default async function AgencyLayout({ children }: { children: React.React
           </Link>
           <nav className="flex gap-3 text-sm">
             <Link href="/agency">All locations</Link>
+            <Link href="/help#agency-start">Help</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-sm opacity-80">{user.email}</span>

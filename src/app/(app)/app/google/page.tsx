@@ -68,7 +68,10 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
         <h1 className="text-2xl font-semibold">Google data</h1>
         <p className="mt-1 text-slate-700 dark:text-slate-300">
           Connect your own Google Search Console and Google Analytics (GA4) to see the real clicks Google sends you, the exact words people
-          searched, and how many of them called or filled in a form.
+          searched, and how many of them called or filled in a form.{" "}
+          <Link href="/help#before-you-start" className="underline">
+            Step-by-step guide
+          </Link>
         </p>
       </div>
 

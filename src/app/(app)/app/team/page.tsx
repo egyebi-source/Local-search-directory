@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { t } from "@/lib/i18n/en";
@@ -72,7 +73,12 @@ export default async function TeamPage({ searchParams }: PageProps<"/app/team">)
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <CardTitle>Agency access</CardTitle>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <CardTitle>Agency access</CardTitle>
+          <Link href="/help#give-agency-access" className="text-sm underline">
+            How this works
+          </Link>
+        </div>
         {agency ? (
           <>
             <p className="text-sm">
@@ -117,7 +123,7 @@ export default async function TeamPage({ searchParams }: PageProps<"/app/team">)
               <p className="text-sm opacity-80">Invite the business owner as an Owner so they can sign in and see their own results.</p>
             ) : null}
             <p className="text-sm opacity-80">{t.team.inviteBody}</p>
-            <InviteForm />
+            <InviteForm allowOwner={ctx.role === "owner" || !members.some((m) => m.role === "owner")} />
           </Card>
 
           <Card className="flex flex-col gap-3">

@@ -297,7 +297,10 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
         <Card className="flex flex-col gap-3">
           <CardTitle>Add a new client</CardTitle>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            For a business that isn&apos;t on TorqueRank yet. You set it up; invite the owner later from its Team page.
+            For a business that isn&apos;t on TorqueRank yet. You set it up; invite the owner later from its Team page.{" "}
+            <Link href="/help#add-client" className="underline">
+              Guide
+            </Link>
           </p>
           <AddLocationForm agencyId={agency.id} />
         </Card>
@@ -305,7 +308,10 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
           <CardTitle>Connect a business that already uses TorqueRank</CardTitle>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             The owner signs in, goes to <strong>Team → Give an agency access</strong>, and sends you the code. We never connect a business
-            without its owner&apos;s say-so.
+            without its owner&apos;s say-so.{" "}
+            <Link href="/help#connect-client" className="underline">
+              Guide
+            </Link>
           </p>
           <ConnectForm agencyId={agency.id} />
         </Card>

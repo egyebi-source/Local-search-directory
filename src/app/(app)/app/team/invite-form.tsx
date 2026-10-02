@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { t } from "@/lib/i18n/en";
 import { inviteAction, type ActionState } from "../actions";
 
-export function InviteForm() {
+export function InviteForm({ allowOwner = true }: { allowOwner?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(inviteAction, {});
   return (
     <form action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -24,7 +24,7 @@ export function InviteForm() {
           className="h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm dark:border-neutral-700"
         >
           <option value="member">{t.common.member}</option>
-          <option value="owner">{t.common.owner}</option>
+          {allowOwner ? <option value="owner">{t.common.owner}</option> : null}
         </select>
       </div>
       <Button type="submit" disabled={pending}>
