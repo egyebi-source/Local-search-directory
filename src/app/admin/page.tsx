@@ -6,6 +6,8 @@ import { requireAdmin } from "@/server/admin/guard";
 import { isDemoEmail } from "@/server/demo/demo";
 import type { PlanStatus } from "@/server/db/schema";
 import { ExtendTrialForm } from "./extend-form";
+import { PricingForm } from "./pricing-form";
+import { getPricing, monthsFree, usd as price } from "@/server/billing/pricing";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -30,7 +32,8 @@ function Tile({ label, value }: { label: string; value: string | number }) {
 // Staff only. Non-admins get a 404 from requireAdmin().
 export default async function AdminPage() {
   const admin = await requireAdmin();
-  const [o, customers, audit] = await Promise.all([adminOverview(admin.id), adminCustomers(admin.id), adminAuditRecent(admin.id)]);
+  const [o, customers, audit, p] = await Promise.all([adminOverview(admin.id), adminCustomers(admin.id), adminAuditRecent(admin.id), getPricing()]);
+  const dollars = (c: number) => (c / 100).toFixed(2);
   const spend = Object.values(o.spend_today).reduce((a, b) => a + Number(b), 0);
 
   return (
@@ -148,6 +151,16 @@ export default async function AdminPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+        <h2 className="text-lg font-semibold">Pricing</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Now: {price(p.monthlyCents)}/month · {price(p.annualCents)}/year ({monthsFree(p)} months free) · agencies {price(p.agencyCents)} per location/month, minimum{" "}
+          {p.agencyMinLocations}. Changes show on the website right away. Once card billing is live, new prices apply to new subscriptions; existing
+          customers keep the price they signed up at.
+        </p>
+        <PricingForm monthly={dollars(p.monthlyCents)} annual={dollars(p.annualCents)} agency={dollars(p.agencyCents)} agencyMin={p.agencyMinLocations} />
       </section>
 
       <section className="flex flex-col gap-3">

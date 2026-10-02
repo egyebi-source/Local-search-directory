@@ -465,3 +465,17 @@ export const digestSends = pgTable(
   },
   (t) => [primaryKey({ columns: [t.orgId, t.week] })],
 );
+
+// --- Global: prices shown on the site and used for billing ------------------------
+
+// Exactly one row (id = 1). Public to read; changed only through the
+// audited admin_set_pricing function.
+export const pricing = pgTable("pricing", {
+  id: integer("id").primaryKey().default(1),
+  monthlyCents: integer("monthly_cents").notNull(),
+  annualCents: integer("annual_cents").notNull(),
+  agencyCents: integer("agency_cents").notNull(),
+  agencyMinLocations: integer("agency_min_locations").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+});

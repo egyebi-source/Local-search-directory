@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { adminExtendTrial, extendTrialSchema } from "@/server/admin/admin";
 import { requireAdmin } from "@/server/admin/guard";
+import { pricingFormSchema, setPricing } from "@/server/billing/pricing";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 
 export type AdminState = { error?: string; ok?: string };
@@ -24,4 +25,29 @@ export async function extendTrialAction(_prev: AdminState, form: FormData): Prom
     if (message && /paid plan|days must|reason required|no such organization/.test(message)) return { error: message };
     throw err;
   }
+}
+
+export async function setPricingAction(_prev: AdminState, form: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const parsed = pricingFormSchema.safeParse({
+    monthly: form.get("monthly"),
+    annual: form.get("annual"),
+    agency: form.get("agency"),
+    agencyMin: form.get("agencyMin"),
+    reason: form.get("reason"),
+  });
+  if (!parsed.success) return { error: "Enter prices in US dollars (e.g. 39.99), a minimum of 1–100 locations, and a reason." };
+  if (!(await consumeRateLimit({ name: "admin-action", limit: 50, windowSeconds: 60 * 60 }, admin.id))) {
+    return { error: "Too many admin actions this hour." };
+  }
+  try {
+    await setPricing(admin.id, parsed.data);
+  } catch (err) {
+    const message = (err as { cause?: { message?: string } }).cause?.message;
+    if (message && /price|minimum|reason/.test(message)) return { error: message.charAt(0).toUpperCase() + message.slice(1) + "." };
+    throw err;
+  }
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return { ok: "Prices updated. The website shows them now." };
 }

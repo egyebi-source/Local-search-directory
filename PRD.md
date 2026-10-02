@@ -125,7 +125,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 ### Module 10 — Trial, billing and lifecycle
 - FR-10.1 Trial: 7 days from organization creation (gate completion). No card required. One trial per organization; a user may not start a new trial for the same website domain within 90 days (abuse control).
 - FR-10.2 Status per org: `trialing` → `active` (paid) or `locked` (trial ended unpaid, or payment failed past Stripe's retry period) → `deleted`. `past_due` keeps access during Stripe's retry window.
-- FR-10.3 Plans: **Monthly $49 USD** and **Annual $490 USD** (two months free), charged in USD only; the site states "Billed in US dollars — your bank converts to your currency." Taxes extra (Stripe Tax). Subscribe via Stripe Checkout; manage/cancel via Stripe Customer Portal. Only owners see billing.
+- FR-10.3 Plans: **Monthly $39.99 USD** and **Annual $399 USD** (two months free); **Agency $29.99 USD per location/month, minimum 5 locations** (agencies mark up to their clients). Prices are stored in the database and editable by staff in the admin console (audited, with a reason); a change applies to new subscriptions, existing subscribers keep their price. Charged in USD only; the site states "Billed in US dollars — your bank converts to your currency." Taxes extra (Stripe Tax). Subscribe via Stripe Checkout; manage/cancel via Stripe Customer Portal. Only owners see billing.
 - FR-10.4 Stripe webhooks are the source of truth for subscription status. Verify every webhook signature; process idempotently (store event ids); never trust plan or price data from the browser.
 - FR-10.5 Locked org: every dashboard page shows only the lock screen and "Add a card to unlock"; data sync stops. Owners can still export or delete their data.
 - FR-10.6 30 days after locking (or immediately on owner request): revoke Google tokens, hard-delete org data (as FR-8.2). Email reminders: trial day 5, day 7, lock day, and 7 days before deletion.
@@ -331,7 +331,7 @@ tests/
 
 ## 14. Open questions for the owner
 1. ~~Product name~~ — **TorqueRank** (decided; trademark check by counsel pending). Domains: torquerank.ca (primary) + torquerank.com (available, not yet purchased).
-2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. Prices decided: **$49 USD/month or $490 USD/year** (two months free), USD only (no CAD conversion shown; the customer's bank converts), plus applicable sales tax (GST/HST/QST via Stripe Tax). Site lives on a .ca domain. Still open: whether plans later differ (e.g., number of locations/properties).
+2. ~~Pricing model~~ — decided: 7-day no-card trial (clock starts at the gate), then monthly or annual plan; unpaid dashboards lock on day 8 and are deleted 30 days later. Prices decided (revised): **$39.99 USD/month or $399 USD/year** (two months free); agencies **$29.99 USD per location/month, 5 minimum**; editable in the admin console, USD only (no CAD conversion shown; the customer's bank converts), plus applicable sales tax (GST/HST/QST via Stripe Tax). Site lives on a .ca domain. Still open: whether plans later differ (e.g., number of locations/properties).
 3. Which email address becomes the Google Cloud and Vercel owner account (should be a company account, not personal, with 2-step verification on).
 4. Legal review of privacy policy and terms before Google verification.
 

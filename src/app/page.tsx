@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getPricing, monthsFree, usd, type Pricing } from "@/server/billing/pricing";
 import { DashboardPreview } from "@/components/marketing/dashboard-preview";
 import { Logo } from "@/components/marketing/logo";
 import { WebsiteForm } from "@/components/marketing/website-form";
@@ -54,10 +55,19 @@ const TRADES = [
   "Custom manufacturing",
 ];
 
-const PLANS = [
-  { name: "Monthly", price: "$49", period: "USD /month", note: "Billed monthly", highlight: false },
-  { name: "Annual", price: "$490", period: "USD /year", note: "About $40.83 USD a month, billed yearly", highlight: true },
-];
+function plansFor(p: Pricing) {
+  const free = monthsFree(p);
+  return [
+    { name: "Monthly", price: usd(p.monthlyCents), period: "USD /month", note: "Billed monthly", highlight: false },
+    {
+      name: "Annual",
+      price: usd(p.annualCents),
+      period: "USD /year",
+      note: `About ${usd(Math.round(p.annualCents / 12))} USD a month, billed yearly${free > 0 ? ` (${free} month${free === 1 ? "" : "s"} free)` : ""}`,
+      highlight: true,
+    },
+  ];
+}
 
 const INCLUDED = [
   "Full dashboard for one business",
@@ -75,7 +85,10 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  // Prices are set in the admin console.
+  const pricing = await getPricing();
+  const plans = plansFor(pricing);
   return (
     <div className="flex flex-1 flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Hero */}
@@ -196,7 +209,7 @@ export default function Home() {
           Start with a free 7-day trial of the full dashboard. No credit card. Cancel any time.
         </p>
         <div className="mx-auto mt-10 grid max-w-3xl gap-6 md:grid-cols-2">
-          {PLANS.map((p) => (
+          {plans.map((p) => (
             <div
               key={p.name}
               className={
@@ -239,7 +252,7 @@ export default function Home() {
             See what you&apos;re missing in under a minute
           </h2>
           <p className="mt-4 text-lg text-slate-300">
-            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then $49 USD/month or $490 USD/year.
+            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then {usd(pricing.monthlyCents)} USD/month or {usd(pricing.annualCents)} USD/year.
           </p>
           <WebsiteForm id="cta-website" className="mt-8 max-w-xl" />
         </div>
