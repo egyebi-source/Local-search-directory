@@ -171,6 +171,7 @@ export const en = {
     rating: "Your rating",
     leaders: "Top 3 average reviews",
     reviewsChart: "Your Google reviews vs the top 3 in Google Maps",
+    digestLink: "Preview this week's email →",
     notFound: "Not in top 20",
     up: (n: number) => `▲ ${n}`,
     down: (n: number) => `▼ ${n}`,

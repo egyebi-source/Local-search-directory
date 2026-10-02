@@ -1,7 +1,7 @@
 import "server-only";
 import { serverEnv } from "@/server/env";
 
-export type Email = { to: string; subject: string; text: string; html: string };
+export type Email = { to: string; subject: string; text: string; html: string; headers?: Record<string, string> };
 
 export class EmailNotConfiguredError extends Error {
   constructor() {
@@ -37,6 +37,7 @@ export async function sendEmail(email: Email): Promise<void> {
       subject: email.subject,
       text: email.text,
       html: email.html,
+      ...(email.headers ? { headers: email.headers } : {}),
     }),
   });
 

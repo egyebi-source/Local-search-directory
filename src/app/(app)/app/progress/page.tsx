@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TrendChart, type TrendMarker } from "@/components/charts/trend-chart";
 import { t } from "@/lib/i18n/en";
 import { withCurrentOrg } from "@/server/org/current";
@@ -118,6 +119,9 @@ export default async function ProgressPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">{p.title}</h1>
         <p className="max-w-2xl text-slate-600 dark:text-slate-400">{p.intro}</p>
+        <Link href="/app/digest" className="text-sm font-medium text-amber-700 underline dark:text-amber-400">
+          {p.digestLink}
+        </Link>
       </div>
 
       {main && main.history.length > 1 && main.history.some((c) => c.reviews !== null) ? (

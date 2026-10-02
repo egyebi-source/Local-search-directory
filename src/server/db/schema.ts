@@ -37,6 +37,8 @@ export const users = pgTable(
     email: text("email").notNull(),
     emailVerified: timestamp("email_verified", { withTimezone: true, mode: "date" }),
     image: text("image"),
+    // Weekly progress email (opt-out via the signed link in every email).
+    weeklyDigest: boolean("weekly_digest").notNull().default(true),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`)],
@@ -448,4 +450,18 @@ export const actionItems = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("action_items_org_status_idx").on(t.orgId, t.status)],
+);
+
+// One row per org per week once the weekly email is sent (prevents doubles).
+export const digestSends = pgTable(
+  "digest_sends",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    week: date("week").notNull(),
+    recipients: integer("recipients").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.orgId, t.week] })],
 );
