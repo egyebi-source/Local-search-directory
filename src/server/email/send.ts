@@ -11,6 +11,13 @@ export class EmailNotConfiguredError extends Error {
 
 const DEFAULT_FROM = "TorqueRank <onboarding@resend.dev>";
 
+/** "TorqueRank <login@example.com>"; a bare address gets the TorqueRank name. */
+export function senderAddress(env: { EMAIL_FROM?: string; RESEND_FROM_EMAIL?: string }): string {
+  const raw = (env.EMAIL_FROM ?? env.RESEND_FROM_EMAIL ?? "").trim();
+  if (!raw) return DEFAULT_FROM;
+  return raw.includes("<") ? raw : `TorqueRank <${raw}>`;
+}
+
 export async function sendEmail(email: Email): Promise<void> {
   const env = serverEnv();
 
@@ -32,7 +39,7 @@ export async function sendEmail(email: Email): Promise<void> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: env.EMAIL_FROM ?? DEFAULT_FROM,
+      from: senderAddress(env),
       to: email.to,
       subject: email.subject,
       text: email.text,
@@ -42,8 +49,14 @@ export async function sendEmail(email: Email): Promise<void> {
   });
 
   if (!res.ok) {
-    // Status only: the response body can echo the message content.
-    throw new Error(`Email provider rejected the message (HTTP ${res.status})`);
+    // Resend's short reason (e.g. "domain is not verified") helps fix setup. Never
+    // the request or our message content; capped and stripped of addresses.
+    const reason = await res
+      .json()
+      .then((b: { message?: unknown }) => (typeof b?.message === "string" ? b.message : ""))
+      .catch(() => "");
+    const safe = reason.replace(/[^\s@<>]+@[^\s@<>]+/g, "[address]").slice(0, 160);
+    throw new Error(`Email provider rejected the message (HTTP ${res.status})${safe ? `: ${safe}` : ""}`);
   }
 }
 

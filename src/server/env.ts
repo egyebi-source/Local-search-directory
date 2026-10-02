@@ -23,6 +23,8 @@ const serverEnvSchema = z.object({
   GOOGLE_LOGIN_CLIENT_SECRET: optional(z.string().min(1)),
   RESEND_API_KEY: optional(z.string().startsWith("re_")),
   EMAIL_FROM: optional(z.string().min(3)),
+  // Same thing under the name used in Vercel; EMAIL_FROM wins if both are set.
+  RESEND_FROM_EMAIL: optional(z.string().min(3)),
 
   // Assessment (Phase 2). DataForSEO stays on its free sandbox (dummy data)
   // unless DATAFORSEO_MODE=live is set deliberately.

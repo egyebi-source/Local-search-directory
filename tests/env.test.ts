@@ -17,3 +17,12 @@ describe("parseServerEnv", () => {
     }
   });
 });
+
+describe("email sender", () => {
+  it("uses EMAIL_FROM or RESEND_FROM_EMAIL, and names a bare address TorqueRank", async () => {
+    const { senderAddress } = await import("@/server/email/send");
+    expect(senderAddress({})).toBe("TorqueRank <onboarding@resend.dev>");
+    expect(senderAddress({ RESEND_FROM_EMAIL: "login@example.com" })).toBe("TorqueRank <login@example.com>");
+    expect(senderAddress({ RESEND_FROM_EMAIL: "x@example.com", EMAIL_FROM: "Acme <a@example.com>" })).toBe("Acme <a@example.com>");
+  });
+});
