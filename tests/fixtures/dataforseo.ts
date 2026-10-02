@@ -53,11 +53,26 @@ export const suggestions = envelope(0.0105, {
   ],
 });
 
+export const maps = envelope(0.002, {
+  keyword: "collision repair ottawa",
+  type: "maps",
+  items_count: 5,
+  items: [
+    { type: "maps_search", rank_group: 1, title: "Rival Auto Body", domain: "www.rivalautobody.ca", category: "Auto body shop", rating: { rating_type: "Max5", value: 4.8, votes_count: 640 } },
+    { type: "maps_search", rank_group: 2, title: "Capital Collision Centre", domain: "capitalcollision.ca", category: "Auto body shop", rating: { value: 4.6, votes_count: 410 } },
+    { type: "maps_search", rank_group: 3, title: "Fast Fix Collision", domain: "fastfixcollision.com", rating: { value: 4.9, votes_count: 150 } },
+    { type: "maps_search", rank_group: 4, title: "Unrated Garage", domain: null, rating: null },
+    { type: "maps_search", rank_group: 6, title: "Acme Collision", domain: "www.acmecollision.ca", category: "Auto body shop", rating: { value: 4.5, votes_count: 85 } },
+    { type: "something_new", rank_group: 7, title: "ignored" },
+  ],
+});
+
 /** Fake transport that answers by endpoint and records every request. */
 export function fakeDataForSeo() {
   const calls: { path: string; body: unknown }[] = [];
   const transport = async (path: string, body: unknown) => {
     calls.push({ path, body });
+    if (path.startsWith("serp/google/maps")) return maps;
     if (path.startsWith("serp/")) return serp;
     if (path.includes("ranked_keywords")) return ranked;
     if (path.includes("keyword_suggestions")) return suggestions;

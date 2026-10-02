@@ -1,5 +1,6 @@
 import type { Insight } from "@/server/ai/insights";
 import type { Country } from "@/server/db/schema";
+import type { MapListing } from "@/server/dataforseo/market";
 
 // Shape of a stored assessment, and the reduced "teaser" shown before
 // sign-up. Pure functions only (unit-tested without a database).
@@ -27,11 +28,86 @@ export type AssessmentResult = {
   rescueTargets: { keyword: string; position: number; monthlySearches: number; cpcUsd: number; score: number }[];
   topKeywords: { keyword: string; monthlySearches: number; cpcUsd: number }[];
   competitors: { domain: string; ads: number }[];
+  /** Google Maps visibility (local businesses only; absent on older assessments). */
+  local?: LocalVisibility;
   /** Extra countries for nationwide businesses (the fields above are the first country). */
   otherMarkets?: Market[];
 };
 
-export type Market = Pick<AssessmentResult, "country" | "metrics" | "rescueTargets" | "topKeywords" | "competitors">;
+export type Market = Pick<AssessmentResult, "country" | "metrics" | "rescueTargets" | "topKeywords" | "competitors" | "local">;
+
+export type LocalVisibility = {
+  keyword: string;
+  /** Position in Google Maps results (top 20 checked), or null if not found. */
+  yourRank: number | null;
+  you: { name: string; rating: number | null; reviews: number | null } | null;
+  /** The top 3 map listings other than the business itself. */
+  leaders: MapListing[];
+  leaderAvgRating: number | null;
+  leaderAvgReviews: number | null;
+  /** Directory sites (Yelp, Reddit…) in the top 10 regular results. */
+  directoriesInTop10: number;
+};
+
+/** Numbers only: safe to show before sign-up (no competitor names). */
+export type LocalSummary = Pick<LocalVisibility, "yourRank" | "you" | "leaderAvgRating" | "leaderAvgReviews" | "directoriesInTop10">;
+
+const DIRECTORIES = [
+  "yelp.", "reddit.com", "autobody.ca", "n49.com", "yellowpages.", "homestars.com", "bbb.org", "facebook.com",
+  "houzz.", "angi.com", "thumbtack.com", "tripadvisor.", "yell.com", "nextdoor.com", "instagram.com", "kijiji.ca",
+];
+export const isDirectory = (domain: string) => DIRECTORIES.some((d) => domain.includes(d));
+
+const host = (d: string) => d.toLowerCase().replace(/^www\./, "");
+/** True when `domain` is the business's own site (or a subdomain of it). */
+export function isOwnDomain(domain: string | null, own: string): boolean {
+  if (!domain) return false;
+  const d = host(domain);
+  const o = host(own);
+  return d === o || d.endsWith(`.${o}`);
+}
+
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+export function localVisibility(
+  keyword: string,
+  listings: MapListing[],
+  organic: { domain: string; position: number }[],
+  ownDomain: string,
+): LocalVisibility {
+  const self = listings.find((l) => isOwnDomain(l.domain, ownDomain)) ?? null;
+  const leaders = listings.filter((l) => l !== self).slice(0, 3);
+  const rating = avg(leaders.flatMap((l) => (l.rating === null ? [] : [l.rating])));
+  const reviews = avg(leaders.flatMap((l) => (l.reviews === null ? [] : [l.reviews])));
+  return {
+    keyword,
+    yourRank: self?.rank ?? null,
+    you: self ? { name: self.name, rating: self.rating, reviews: self.reviews } : null,
+    leaders,
+    leaderAvgRating: rating === null ? null : Math.round(rating * 10) / 10,
+    leaderAvgReviews: reviews === null ? null : Math.round(reviews),
+    directoriesInTop10: organic.filter((o) => o.position <= 10 && isDirectory(o.domain)).length,
+  };
+}
+
+export function toLocalSummary(l: LocalVisibility): LocalSummary {
+  return {
+    yourRank: l.yourRank,
+    you: l.you ? { name: l.you.name, rating: l.you.rating, reviews: l.you.reviews } : null,
+    leaderAvgRating: l.leaderAvgRating,
+    leaderAvgReviews: l.leaderAvgReviews,
+    directoriesInTop10: l.directoriesInTop10,
+  };
+}
+
+/**
+ * How many new reviews a week would reach the leaders' average in about
+ * six months (26 weeks). At least 1 when there is any gap.
+ */
+export function reviewsPerWeekToCatchUp(yours: number, leaders: number): number {
+  const gap = leaders - yours;
+  return gap <= 0 ? 0 : Math.max(1, Math.ceil(gap / 26));
+}
 
 export const FREE_INSIGHTS = 2;
 
@@ -46,6 +122,9 @@ export type Teaser = {
   lockedInsights: number;
   lockedRescueTargets: number;
   lockedCompetitors: number;
+  /** Names of map leaders stay locked; only numbers are shown. */
+  local: LocalSummary | null;
+  lockedLeaders: number;
   otherCountries: Country[];
 };
 
@@ -66,6 +145,8 @@ export function toTeaser(r: AssessmentResult): Teaser {
     lockedInsights: Math.max(0, r.insights.length - FREE_INSIGHTS),
     lockedRescueTargets: r.rescueTargets.length,
     lockedCompetitors: r.competitors.length,
+    local: r.local ? toLocalSummary(r.local) : null,
+    lockedLeaders: r.local?.leaders.length ?? 0,
     otherCountries: (r.otherMarkets ?? []).map((m) => m.country),
   };
 }
@@ -100,29 +181,28 @@ export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSou
     walk_ins: "Keep your Google Business Profile hours, address and photos current; it drives map views and visits.",
     lower_ad_spend: "Searches you can win in regular results are clicks you don't have to pay for. Start with your rescue targets.",
   };
-  return [
-    {
+  const ads = {
       title: m.advertisers > 0 ? `${m.advertisers} businesses are paying for ads on your top search` : "No one is advertising on your top search yet",
       detail:
         m.advertisers > 0
           ? `People searching "${r.primaryKeyword}" see paid ads first. Estimated cost per click: ${m.topCpcUsd !== null ? usd(m.topCpcUsd) : "not available"}.`
           : `Searches for "${r.primaryKeyword}" show no paid ads right now, so ranking well in regular results gets you seen first.`,
-    },
-    {
+  };
+  const organic = {
       title:
         m.yourPosition !== null ? `You rank #${m.yourPosition} for "${r.primaryKeyword}"` : `You're not in the top 20 for "${r.primaryKeyword}"`,
       detail:
         m.yourPosition !== null && m.yourPosition <= 3
           ? "You're near the top. Protect it with fresh reviews and an up-to-date service page."
           : "A dedicated page for this service and city, plus steady Google reviews, is the most reliable way to move up.",
-    },
-    {
+  };
+  const rescue = {
       title: `${m.rescueTargets} searches where you're on page 2 or 3`,
       detail: top
         ? `Your best opportunity: "${top.keyword}" (position ${top.position}, about ${top.monthlySearches.toLocaleString("en-US")} searches a month). Moving to page 1 is usually faster than starting from scratch.`
         : "We didn't find searches where you're close to page 1 yet. Building service pages for each job type you offer is the first step.",
-    },
-    {
+  };
+  const demand = {
       title:
         r.reach === "national"
           ? `About ${m.monthlySearches.toLocaleString("en-US")} searches a month across the country for what you do`
@@ -131,7 +211,44 @@ export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSou
         r.reach === "national"
           ? "That's national demand for your main services. Each search you show up for is a chance at a lead."
           : "That's the demand in your area for your main services. Each search you show up for is a chance at a call or quote.",
-    },
-    { title: "Your quickest next step", detail: goalLine[goal] ?? goalLine.calls },
-  ];
+  };
+  const next = { title: "Your quickest next step", detail: goalLine[goal] ?? goalLine.calls };
+  if (!r.local) return [ads, organic, rescue, demand, next];
+  return [...mapInsights(r.local, r.category), organic, rescue, next];
+}
+
+const stars = (n: number | null) => (n === null ? "no rating" : `${n.toFixed(1)}★`);
+const count = (n: number | null) => (n === null ? "no" : n.toLocaleString("en-US"));
+
+/** The two findings that matter most for a local business: map position and reviews. */
+export function mapInsights(l: LocalVisibility, category: string): Insight[] {
+  const rank: Insight =
+    l.yourRank === null
+      ? {
+          title: `You don't show up in Google Maps for "${l.keyword}"`,
+          detail: `Most calls for local services come from the top 3 map listings. Check that your Google Business Profile is verified, lists "${category}" as its main category, and links to your website.`,
+        }
+      : l.yourRank <= 3
+        ? {
+            title: `You're #${l.yourRank} in Google Maps for "${l.keyword}"`,
+            detail: "You're in the top 3, where most calls happen. Keep it with a steady flow of new reviews and replies to every review.",
+          }
+        : {
+            title: `You're #${l.yourRank} in Google Maps for "${l.keyword}"`,
+            detail: "The top 3 map listings get most of the calls. Reviews, a complete Business Profile and a page on your site for this service and city are what move you up.",
+          };
+  const lead = `The top 3 map listings average ${stars(l.leaderAvgRating)} from ${count(l.leaderAvgReviews)} reviews`;
+  const yours = l.you?.reviews ?? 0;
+  const perWeek = l.leaderAvgReviews === null ? 0 : reviewsPerWeekToCatchUp(yours, l.leaderAvgReviews);
+  const reviews: Insight = {
+    title: l.you ? `You have ${count(l.you.reviews)} reviews; the leaders average ${count(l.leaderAvgReviews)}` : lead,
+    detail: l.you
+      ? `${lead}; you have ${stars(l.you.rating)} from ${count(l.you.reviews)}. ${
+          perWeek > 0
+            ? `Asking for about ${perWeek} new review${perWeek === 1 ? "" : "s"} a week would close the gap in roughly 6 months.`
+            : "You're ahead on reviews. Keep replying to each one."
+        }`
+      : `${lead}. Reviews are one of the biggest factors in who Google shows first for local searches.`,
+  };
+  return [rank, reviews];
 }

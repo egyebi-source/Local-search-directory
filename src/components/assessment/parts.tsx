@@ -1,5 +1,5 @@
 import type { Insight } from "@/server/ai/insights";
-import type { AssessmentResult, Market } from "@/server/assessment/result";
+import type { AssessmentResult, LocalSummary, LocalVisibility, Market } from "@/server/assessment/result";
 import { t } from "@/lib/i18n/en";
 
 const a = t.assessment;
@@ -30,6 +30,61 @@ export function MetricTiles({ m }: { m: AssessmentResult["metrics"] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+const L = a.local;
+const num = (n: number | null) => (n === null ? "—" : n.toLocaleString("en-US"));
+const star = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}★`);
+
+/** Map position and review gap: the numbers that decide who gets local calls. */
+export function LocalTiles({ l, m }: { l: LocalSummary; m: AssessmentResult["metrics"] }) {
+  const tiles = [
+    {
+      label: L.mapRank,
+      value: l.yourRank === null ? L.notInMaps : `#${l.yourRank}`,
+      note: L.top3,
+      bad: l.yourRank === null || l.yourRank > 3,
+    },
+    {
+      label: L.yourReviews,
+      value: l.you ? num(l.you.reviews) : "—",
+      note: `${L.leaderReviews}: ${num(l.leaderAvgReviews)} · ${star(l.leaderAvgRating)}`,
+      bad: (l.you?.reviews ?? 0) < (l.leaderAvgReviews ?? 0),
+    },
+    {
+      label: a.metrics.yourPosition,
+      value: m.yourPosition === null ? a.metrics.notRanked : `#${m.yourPosition}`,
+      note: null,
+      bad: m.yourPosition === null || m.yourPosition > 3,
+    },
+    { label: L.directories, value: String(l.directoriesInTop10), note: L.directoriesNote, bad: false },
+  ];
+  return (
+    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tiles.map((tile) => (
+        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+          <dt className="text-sm text-slate-600 dark:text-slate-400">{tile.label}</dt>
+          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${tile.bad ? "text-red-700 dark:text-red-400" : ""}`}>{tile.value}</dd>
+          {tile.note ? <dd className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tile.note}</dd> : null}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Names of the map leaders: members only. */
+export function LeadersTable({ l }: { l: LocalVisibility }) {
+  const rows = [
+    ...l.leaders.map((x) => [`#${x.rank}`, x.name, star(x.rating), num(x.reviews)]),
+    ...(l.you ? [[l.yourRank === null ? "—" : `#${l.yourRank}`, `${l.you.name} (you)`, star(l.you.rating), num(l.you.reviews)]] : []),
+  ];
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-xl font-semibold">{L.leadersTitle}</h2>
+      <p className="text-sm text-slate-600 dark:text-slate-400">{L.leadersBody(l.keyword)}</p>
+      <Table caption={L.leadersTitle} head={[L.colRank, L.colBusiness, L.rating, L.colReviews]} rows={rows} />
+    </section>
   );
 }
 
@@ -103,6 +158,7 @@ export function FullDetails({ r }: { r: AssessmentResult }) {
   return (
     <div className="flex flex-col gap-10">
       {others.length ? <h2 className="text-2xl font-semibold">{a.marketTitle(a.countryNames[r.country])}</h2> : null}
+      {r.local ? <LeadersTable l={r.local} /> : null}
       <MarketDetails r={r} />
       {others.map((m) => (
         <section key={m.country} className="flex flex-col gap-6 border-t border-slate-200 pt-8 dark:border-slate-800">

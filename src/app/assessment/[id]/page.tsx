@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { InsightCards, MetricTiles, SampleDataBanner } from "@/components/assessment/parts";
+import { InsightCards, LocalTiles, MetricTiles, SampleDataBanner } from "@/components/assessment/parts";
 import { Logo } from "@/components/marketing/logo";
 import { t } from "@/lib/i18n/en";
 import { toTeaser } from "@/server/assessment/result";
@@ -39,13 +39,14 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
               <p className="mt-1 text-slate-600 dark:text-slate-400">{a.subtitle(teaser.primaryKeyword)}</p>
             </div>
             <SampleDataBanner source={teaser.dataSource} />
-            <MetricTiles m={teaser.metrics} />
+            {teaser.local ? <LocalTiles l={teaser.local} m={teaser.metrics} /> : <MetricTiles m={teaser.metrics} />}
             <section className="flex flex-col gap-3">
               <h2 className="text-xl font-semibold">{a.insightsTitle}</h2>
               <InsightCards insights={teaser.insights} lockedCount={teaser.lockedInsights} />
             </section>
             <section className="flex flex-col items-center gap-3 rounded-2xl bg-slate-950 px-6 py-10 text-center text-white">
               <p className="max-w-lg text-lg">{a.locked(teaser.lockedInsights)}</p>
+              {teaser.lockedLeaders ? <p className="max-w-lg text-slate-300">{a.local.lockedLeaders(teaser.lockedLeaders)}</p> : null}
               {teaser.otherCountries.length ? (
                 <p className="max-w-lg text-slate-300">
                   {a.alsoAssessed(teaser.otherCountries.map((c) => a.countryNames[c]).join(", "))}

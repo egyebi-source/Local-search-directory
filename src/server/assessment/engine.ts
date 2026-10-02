@@ -3,11 +3,11 @@ import { aiInsights } from "@/server/ai/insights";
 import type { GeminiTransport } from "@/server/ai/gemini";
 import { DataForSeoError, type DataForSeoTransport } from "@/server/dataforseo/client";
 import { z } from "zod";
-import { keywordValues, localSerp, pageTwoKeywords } from "@/server/dataforseo/market";
+import { keywordValues, localSerp, mapsRanking, pageTwoKeywords } from "@/server/dataforseo/market";
 import { SpendCapReachedError } from "@/server/security/spend";
 import type { Answers } from "@/server/onboarding/answers";
 import type { Country } from "@/server/db/schema";
-import { opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult, type Market } from "./result";
+import { localVisibility, mapInsights, toLocalSummary, opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult, type Market } from "./result";
 
 /** `details` are our own credential-free failure reasons (see `settle`). */
 export class AssessmentUnavailableError extends Error {
@@ -46,10 +46,13 @@ async function settle<T>(p: Promise<T>, fallback: T): Promise<{ value: T; ok: bo
 type MarketData = Omit<Market, "country"> & { country: Country; adText: string[]; ok: boolean; failures: string[] };
 
 async function lookupMarket(answers: Answers, country: Country, keyword: string, deps: EngineDeps): Promise<MarketData> {
-  const [serp, ranked, values] = await Promise.all([
+  // Google Maps only matters for businesses serving a local area.
+  const local = answers.reach !== "national";
+  const [serp, ranked, values, maps] = await Promise.all([
     settle(localSerp(deps.dataforseo, keyword, country), { ads: [], organic: [] }),
     settle(pageTwoKeywords(deps.dataforseo, answers.website, country), []),
     settle(keywordValues(deps.dataforseo, keyword, country), []),
+    local ? settle(mapsRanking(deps.dataforseo, keyword, country), []) : Promise.resolve({ value: [], ok: false, detail: undefined }),
   ]);
 
   const own = answers.website;
@@ -78,8 +81,8 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
 
   return {
     country,
-    ok: serp.ok || ranked.ok || values.ok,
-    failures: [serp.detail, ranked.detail, values.detail].filter((d): d is string => !!d),
+    ok: serp.ok || ranked.ok || values.ok || maps.ok,
+    failures: [serp.detail, ranked.detail, values.detail, maps.detail].filter((d): d is string => !!d),
     adText: competitorAds.slice(0, 5).map((a) => `${a.title} — ${a.description}`),
     metrics: {
       advertisers: competitors.length,
@@ -92,6 +95,7 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
     rescueTargets,
     topKeywords,
     competitors,
+    ...(maps.ok ? { local: localVisibility(keyword, maps.value, serp.value.organic, own) } : {}),
   };
 }
 
@@ -107,6 +111,7 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
     rescueTargets: m.rescueTargets,
     topKeywords: m.topKeywords,
     competitors: m.competitors,
+    ...(m.local ? { local: m.local } : {}),
   });
 
   const base: Omit<AssessmentResult, "insights" | "insightsSource"> = {
@@ -141,12 +146,19 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
         monthlySearches: k.monthlySearches,
         cpcUsd: k.cpcUsd,
       })),
+      ...(main.local ? { local: toLocalSummary(main.local) } : {}),
       competitorAdText: markets.flatMap((m) => m.adText).slice(0, 8),
     },
-    markets.flatMap((m) => m.competitors.map((c) => c.domain)),
+    [
+      ...markets.flatMap((m) => m.competitors.map((c) => c.domain)),
+      ...markets.flatMap((m) => m.local?.leaders.flatMap((l) => [l.name, ...(l.domain ? [l.domain] : [])]) ?? []),
+    ],
   );
 
+  // Map position and reviews are facts we state ourselves, always first;
+  // the AI adds the rest.
+  const lead = main.local ? mapInsights(main.local, answers.category) : [];
   return ai
-    ? { ...base, insights: ai, insightsSource: "ai" }
+    ? { ...base, insights: [...lead, ...ai].slice(0, 5), insightsSource: "ai" }
     : { ...base, insights: ruleInsights(base, answers.goals), insightsSource: "rules" };
 }

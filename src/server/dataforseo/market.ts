@@ -115,3 +115,42 @@ export async function keywordValues(t: DataForSeoTransport, seed: string, countr
     cpcUsd: i.keyword_info?.cpc ?? 0,
   }));
 }
+
+export type MapListing = {
+  rank: number;
+  name: string;
+  domain: string | null;
+  rating: number | null;
+  reviews: number | null;
+  category: string | null;
+};
+
+const mapsItem = z.object({
+  type: z.string(),
+  rank_group: z.number(),
+  title: z.string(),
+  domain: str,
+  category: str,
+  rating: z.object({ value: num, votes_count: num }).nullable().optional(),
+});
+
+/** Google Maps results for a local search: who gets the calls, with ratings and review counts. */
+export async function mapsRanking(t: DataForSeoTransport, keyword: string, country: Country): Promise<MapListing[]> {
+  const raw = await liveTask(t, "serp/google/maps/live/advanced", {
+    keyword,
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+    depth: 20,
+  });
+  return parseItems(raw, mapsItem)
+    .filter((i) => i.type === "maps_search")
+    .map((i) => ({
+      rank: i.rank_group,
+      name: i.title.slice(0, 120),
+      domain: i.domain ? i.domain.toLowerCase() : null,
+      rating: i.rating?.value ?? null,
+      reviews: i.rating?.votes_count ?? null,
+      category: i.category ? i.category.slice(0, 80) : null,
+    }))
+    .sort((a, b) => a.rank - b.rank);
+}

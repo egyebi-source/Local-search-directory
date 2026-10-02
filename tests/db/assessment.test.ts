@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiRequest, GeminiTransport } from "@/server/ai/gemini";
 import { runAssessment } from "@/server/assessment/engine";
-import { toTeaser } from "@/server/assessment/result";
+import { localVisibility, reviewsPerWeekToCatchUp, toTeaser } from "@/server/assessment/result";
 import { AssessmentRateLimitedError, assess } from "@/server/assessment/service";
 import { getSnapshot } from "@/server/assessment/snapshots";
 import { answersSchema } from "@/server/onboarding/answers";
@@ -69,7 +69,10 @@ describe.runIf(hasDb)("assessment engine", () => {
     });
     expect(r.primaryKeyword).toBe("collision repair");
     expect(r.reach).toBe("national");
-    const serpCall = dfs.calls.find((c) => c.path.startsWith("serp/"));
+    const serpCall = dfs.calls.find((c) => c.path.startsWith("serp/google/organic"));
+    // Google Maps is only checked for local businesses.
+    expect(dfs.calls.some((c) => c.path.includes("maps"))).toBe(false);
+    expect(r.local).toBeUndefined();
     expect((serpCall?.body as { keyword: string; location_code: number }[])[0]).toMatchObject({ keyword: "collision repair", location_code: 2124 });
   });
 
@@ -90,6 +93,62 @@ describe.runIf(hasDb)("assessment engine", () => {
     expect(toTeaser(r).otherCountries).toEqual(["US"]);
     // The teaser never includes the other country's details.
     expect(JSON.stringify(toTeaser(r))).not.toContain("rivalautobody");
+  });
+
+  it("finds the business in Google Maps and compares it with the top 3", async () => {
+    const ai = fakeGemini([JSON.stringify(GOOD_INSIGHTS)]);
+    const r = await runAssessment(answers, { dataforseo: fakeDataForSeo().transport, gemini: ai.transport, dataSource: "sandbox" });
+    expect(r.local).toMatchObject({
+      keyword: "collision repair ottawa",
+      yourRank: 6,
+      you: { name: "Acme Collision", rating: 4.5, reviews: 85 },
+      leaderAvgRating: 4.8,
+      leaderAvgReviews: 400,
+    });
+    expect(r.local?.leaders.map((l) => l.name)).toEqual(["Rival Auto Body", "Capital Collision Centre", "Fast Fix Collision"]);
+    // Our own facts lead; the AI fills the rest; still 5 findings.
+    expect(r.insights[0].title).toBe('You\'re #6 in Google Maps for "collision repair ottawa"');
+    expect(r.insights[1].detail).toContain("about 13 new reviews a week");
+    expect(r.insights).toHaveLength(5);
+    // The AI gets the numbers but never the other businesses' names.
+    const payload = JSON.parse(ai.requests[0].user);
+    expect(payload.data.google_maps).toMatchObject({ your_rank: 6, your_reviews: 85, top3_avg_reviews: 400 });
+    for (const name of ["Rival Auto Body", "Capital Collision", "Fast Fix"]) expect(ai.requests[0].user).not.toContain(name);
+  });
+
+  it("the free teaser shows map numbers but not who the leaders are", async () => {
+    const r = await runAssessment(answers, {
+      dataforseo: fakeDataForSeo().transport,
+      gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport,
+      dataSource: "sandbox",
+    });
+    const teaser = toTeaser(r);
+    expect(teaser.local).toMatchObject({ yourRank: 6, leaderAvgReviews: 400 });
+    expect(teaser.lockedLeaders).toBe(3);
+    const json = JSON.stringify(teaser);
+    for (const name of ["Rival Auto Body", "Capital Collision", "capitalcollision.ca", "Fast Fix Collision"]) expect(json).not.toContain(name);
+  });
+
+  it("AI output that names a map leader is discarded", async () => {
+    const naming = GOOD_INSIGHTS.map((i, n) => (n === 0 ? { title: "Copy Capital Collision Centre", detail: "They have more reviews than you do right now." } : i));
+    const r = await runAssessment(answers, {
+      dataforseo: fakeDataForSeo().transport,
+      gemini: fakeGemini([JSON.stringify(naming)]).transport,
+      dataSource: "sandbox",
+    });
+    expect(r.insightsSource).toBe("rules");
+    expect(JSON.stringify(r.insights)).not.toContain("Capital Collision");
+  });
+
+  it("a failed Maps lookup still produces an assessment", async () => {
+    const dfs = fakeDataForSeo();
+    const transport = async (path: string, body: unknown) => {
+      if (path.includes("maps")) throw new Error("boom");
+      return dfs.transport(path, body);
+    };
+    const r = await runAssessment(answers, { dataforseo: transport, gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport, dataSource: "sandbox" });
+    expect(r.local).toBeUndefined();
+    expect(r.insights).toHaveLength(5);
   });
 
   it("never gives the AI competitor names, and marks their ad text as untrusted data", async () => {
@@ -126,8 +185,42 @@ describe.runIf(hasDb)("assessment engine", () => {
   it("records what each provider cost today", async () => {
     await runAssessment(answers, { dataforseo: fakeDataForSeo().transport, gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport, dataSource: "sandbox" });
     const rows = await asOwner(async (c) => (await c.query("SELECT provider, micros FROM api_spend_daily ORDER BY provider")).rows);
-    expect(rows.find((r) => r.provider === "dataforseo")?.micros).toBe("25700"); // 0.002 + 0.0132 + 0.0105 USD
+    expect(rows.find((r) => r.provider === "dataforseo")?.micros).toBe("27700"); // 0.002 + 0.0132 + 0.0105 + 0.002 (maps) USD
     expect(Number(rows.find((r) => r.provider === "gemini")?.micros)).toBeGreaterThan(0);
+  });
+});
+
+describe("local visibility", () => {
+  const listings = [
+    { rank: 1, name: "A", domain: "a.ca", rating: 4.8, reviews: 1000, category: null },
+    { rank: 2, name: "Me", domain: "www.me.ca", rating: 4.2, reviews: 20, category: null },
+    { rank: 3, name: "B", domain: "b.ca", rating: 4.6, reviews: 500, category: null },
+    { rank: 4, name: "C", domain: null, rating: null, reviews: null, category: null },
+  ];
+  it("matches the business by its website, ignoring www, and skips it in the leaders", () => {
+    const l = localVisibility("k", listings, [], "me.ca");
+    expect(l.yourRank).toBe(2);
+    expect(l.leaders.map((x) => x.name)).toEqual(["A", "B", "C"]);
+    // Missing ratings are left out of the averages, not counted as zero.
+    expect(l).toMatchObject({ leaderAvgRating: 4.7, leaderAvgReviews: 750 });
+  });
+  it("not found in Maps means no rank, never a guess", () => {
+    expect(localVisibility("k", listings, [], "notme.ca")).toMatchObject({ yourRank: null, you: null });
+    expect(localVisibility("k", listings, [], "e.ca").yourRank).toBeNull(); // "me.ca" must not match "e.ca"
+  });
+  it("counts directory sites in the top 10 regular results", () => {
+    const organic = [
+      { domain: "www.reddit.com", position: 1 },
+      { domain: "m.yelp.ca", position: 8 },
+      { domain: "www.yelp.com", position: 14 },
+      { domain: "shop.ca", position: 2 },
+    ];
+    expect(localVisibility("k", listings, organic, "me.ca").directoriesInTop10).toBe(2);
+  });
+  it("review pace to catch up in about 6 months", () => {
+    expect(reviewsPerWeekToCatchUp(85, 400)).toBe(13);
+    expect(reviewsPerWeekToCatchUp(398, 400)).toBe(1);
+    expect(reviewsPerWeekToCatchUp(500, 400)).toBe(0);
   });
 });
 

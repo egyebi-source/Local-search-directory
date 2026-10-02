@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
-import { FullDetails, InsightCards, MetricTiles, SampleDataBanner } from "@/components/assessment/parts";
+import { FullDetails, InsightCards, LocalTiles, MetricTiles, SampleDataBanner } from "@/components/assessment/parts";
 import { t } from "@/lib/i18n/en";
-import type { AssessmentResult } from "@/server/assessment/result";
+import { toLocalSummary, type AssessmentResult } from "@/server/assessment/result";
 import { orgAssessments, organizations } from "@/server/db/schema";
 import { withCurrentOrg } from "@/server/org/current";
 
@@ -27,7 +27,11 @@ export default async function OverviewPage() {
         <>
           <p className="text-slate-600 dark:text-slate-400">{t.assessment.subtitle(assessment.primaryKeyword)}</p>
           <SampleDataBanner source={assessment.dataSource} />
-          <MetricTiles m={assessment.metrics} />
+          {assessment.local ? (
+            <LocalTiles l={toLocalSummary(assessment.local)} m={assessment.metrics} />
+          ) : (
+            <MetricTiles m={assessment.metrics} />
+          )}
           <section className="flex flex-col gap-3">
             <h2 className="text-xl font-semibold">{t.assessment.insightsTitle}</h2>
             <InsightCards insights={assessment.insights} />
