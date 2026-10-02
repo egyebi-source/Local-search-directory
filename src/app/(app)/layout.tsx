@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listMyAgencies, managingAgency } from "@/server/agency/agency";
+import { Logo } from "@/components/marketing/logo";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n/en";
 import { withOrg } from "@/server/db/tenant";
@@ -22,12 +23,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
+      <header className="border-b border-rose-100 bg-white">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-4 px-4 py-3">
-          <Link href="/app" className="font-semibold">
-            {t.appName}
+          <Link href="/app" aria-label={t.appName}>
+            <Logo />
           </Link>
-          <nav className="flex flex-wrap gap-3 text-sm">
+          <nav className="flex flex-wrap gap-3 text-sm text-slate-700 [&_a:hover]:text-rose-700">
             {agencies.length ? (
               <Link href="/agency" className="font-medium">
                 ← All locations
@@ -53,7 +54,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                   id="orgId"
                   name="orgId"
                   defaultValue={current.id}
-                  className="h-8 rounded-md border border-neutral-300 bg-transparent px-2 text-sm dark:border-neutral-700"
+                  className="h-8 rounded-md border border-neutral-300 bg-transparent px-2 text-sm"
                 >
                   {orgs.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -77,14 +78,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       {isDemoEmail(user.email) ? (
-        <div className="border-b border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
+        <div className="border-b border-rose-300 bg-rose-50 text-rose-950">
           <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
             Demo account: the business, numbers and competitors are fictional. <Link href="/demo" className="underline">Back to the demo menu</Link>
           </p>
         </div>
       ) : null}
       {current.role === "agency" ? (
-        <div className="border-b border-violet-300 bg-violet-50 text-violet-950 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
+        <div className="border-b border-rose-300 bg-rose-50 text-rose-950">
           <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
             You&apos;re working in <strong>{current.name.replace(/\s*\(Demo\)$/, "")}</strong>
             {viaAgency ? <> for {viaAgency}</> : null}.{" "}
@@ -94,7 +95,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </p>
         </div>
       ) : access.kind === "agency" ? (
-        <div className="border-b border-violet-300 bg-violet-50 text-violet-950 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
+        <div className="border-b border-rose-300 bg-rose-50 text-rose-950">
           <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
             Managed by <strong>{access.agencyName}</strong>, who covers your plan.{" "}
             <Link href="/app/team" className="underline">
@@ -104,7 +105,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       ) : null}
       {access.kind === "trialing" ? (
-        <div className="border-b border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <div className="border-b border-gold-300 bg-gold-50 text-gold-950">
           <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
             {t.trial.daysLeft(access.daysLeft)}{" "}
             <Link href="/app/billing" className="font-medium underline">

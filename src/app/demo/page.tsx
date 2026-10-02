@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 
 function Choice({ title, body, action, cta }: { title: string; body: string; action: () => Promise<void>; cta: string }) {
   return (
-    <form action={action} className="flex flex-col gap-3 rounded-2xl bg-white p-6 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <form action={action} className="flex flex-col gap-3 rounded-2xl bg-white p-6 ring-1 ring-slate-200">
       <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="flex-1 text-sm text-slate-600 dark:text-slate-400">{body}</p>
-      <button type="submit" className="rounded-lg bg-amber-500 px-4 py-2.5 font-semibold text-slate-950 hover:bg-amber-400">
+      <p className="flex-1 text-sm text-slate-600">{body}</p>
+      <button type="submit" className="rounded-lg bg-rose-700 px-4 py-2.5 font-semibold text-white hover:bg-rose-800">
         {cta}
       </button>
     </form>
@@ -25,22 +25,22 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
   if (!demoEnabled()) notFound();
   const { missing } = await searchParams;
   return (
-    <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-slate-50">
       <header className="mx-auto flex w-full max-w-5xl items-center px-4 py-5">
-        <Link href="/" className="text-slate-900 dark:text-white">
+        <Link href="/" className="text-slate-900">
           <Logo className="text-lg" />
         </Link>
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-16">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Product demo</h1>
-          <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
+          <p className="mt-2 max-w-2xl text-slate-600">
             Everything here is fictional: a made-up shop with 60 days of history, made-up competitors, test accounts. No emails are sent and
             no real businesses are involved.
           </p>
         </div>
         {missing ? (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-red-700">
             Demo data isn&apos;t loaded on this deployment yet.
           </p>
         ) : null}

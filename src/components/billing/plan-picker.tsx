@@ -3,11 +3,10 @@
 import { useActionState } from "react";
 import { checkoutAction, portalAction, type BillingState } from "@/app/billing-actions";
 
-type Props = { monthly: string; annual: string; annualNote: string; dark?: boolean };
+type Props = { monthly: string; annual: string; annualNote: string };
 
-export function PlanPicker({ monthly, annual, annualNote, dark = false }: Props) {
+export function PlanPicker({ monthly, annual, annualNote }: Props) {
   const [state, action, pending] = useActionState<BillingState, FormData>(checkoutAction, {});
-  const card = dark ? "bg-slate-900 ring-slate-700" : "bg-white ring-slate-200 dark:bg-slate-900 dark:ring-slate-800";
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -15,7 +14,7 @@ export function PlanPicker({ monthly, annual, annualNote, dark = false }: Props)
           { plan: "monthly", name: "Monthly", price: monthly, period: "USD / month", note: "Cancel anytime" },
           { plan: "annual", name: "Annual", price: annual, period: "USD / year", note: annualNote },
         ].map((p) => (
-          <form key={p.plan} action={action} className={`flex flex-col gap-2 rounded-xl p-5 ring-1 ${card}`}>
+          <form key={p.plan} action={action} className="flex flex-col gap-2 rounded-xl bg-white p-5 ring-1 ring-rose-100">
             <input type="hidden" name="plan" value={p.plan} />
             <p className="text-sm font-medium">{p.name}</p>
             <p className="text-3xl font-bold">
@@ -25,7 +24,7 @@ export function PlanPicker({ monthly, annual, annualNote, dark = false }: Props)
             <button
               type="submit"
               disabled={pending}
-              className="mt-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-60"
+              className="mt-2 rounded-lg bg-rose-700 px-4 py-2 font-semibold text-white hover:bg-rose-800 disabled:opacity-60"
             >
               {pending ? "Opening secure payment…" : `Choose ${p.name.toLowerCase()}`}
             </button>
@@ -33,7 +32,7 @@ export function PlanPicker({ monthly, annual, annualNote, dark = false }: Props)
         ))}
       </div>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
@@ -48,11 +47,11 @@ export function ManageBillingButton() {
   const [state, action, pending] = useActionState<BillingState, FormData>(() => portalAction(), {});
   return (
     <form action={action} className="flex flex-col items-start gap-2">
-      <button type="submit" disabled={pending} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-slate-900">
+      <button type="submit" disabled={pending} className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-60">
         {pending ? "Opening…" : "Change card, switch plan or cancel"}
       </button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}

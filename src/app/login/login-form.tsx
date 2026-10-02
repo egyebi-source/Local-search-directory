@@ -15,7 +15,7 @@ export function EmailLoginForm({ callbackUrl }: { callbackUrl?: string }) {
       <Label htmlFor="email">{t.login.emailLabel}</Label>
       <Input id="email" name="email" type="email" autoComplete="email" required maxLength={254} />
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}

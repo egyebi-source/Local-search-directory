@@ -18,9 +18,9 @@ export default async function CampaignsPage() {
           Admin home
         </Link>
       </header>
-      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold">New campaign</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-600">
           We look up who shows in Google Maps for the business type in that city (about 1 cent for the whole city) and prepare a private
           report and claim link for each business with a website. Businesses that opted out are skipped automatically.
         </p>
@@ -36,7 +36,7 @@ export default async function CampaignsPage() {
               <li key={c.id}>
                 <Link
                   href={`/admin/campaigns/${c.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-4 py-3 ring-1 ring-slate-200 hover:ring-slate-400 dark:bg-slate-900 dark:ring-slate-800"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-4 py-3 ring-1 ring-slate-200 hover:ring-slate-400"
                 >
                   <span>
                     <span className="font-medium">{c.name}</span>{" "}
@@ -45,7 +45,7 @@ export default async function CampaignsPage() {
                       {c.dataSource === "sandbox" ? " · sample data" : ""}
                     </span>
                   </span>
-                  <span className="text-sm tabular-nums text-slate-600 dark:text-slate-400">
+                  <span className="text-sm tabular-nums text-slate-600">
                     {c.total} businesses · {c.opened} opened · {c.claimed} claimed
                   </span>
                 </Link>

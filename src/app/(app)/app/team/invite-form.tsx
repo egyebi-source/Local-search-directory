@@ -21,7 +21,7 @@ export function InviteForm({ allowOwner = true }: { allowOwner?: boolean }) {
           id="invite-role"
           name="role"
           defaultValue="member"
-          className="h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm dark:border-neutral-700"
+          className="h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm"
         >
           <option value="member">{t.common.member}</option>
           {allowOwner ? <option value="owner">{t.common.owner}</option> : null}
@@ -31,12 +31,12 @@ export function InviteForm({ allowOwner = true }: { allowOwner?: boolean }) {
         {t.team.inviteSubmit}
       </Button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 sm:basis-full dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700 sm:basis-full">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="text-sm text-green-700 sm:basis-full dark:text-green-400">
+        <p role="status" className="text-sm text-green-700 sm:basis-full">
           {state.ok}
         </p>
       ) : null}

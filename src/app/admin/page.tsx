@@ -22,8 +22,8 @@ function status(planStatus: string, trialEndsAt: string): string {
 
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-      <p className="text-xs text-slate-600 dark:text-slate-400">{label}</p>
+    <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+      <p className="text-xs text-slate-600">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
     </div>
   );
@@ -51,7 +51,7 @@ export default async function AdminPage() {
       </header>
 
       {isDemoEmail(admin.email) ? (
-        <p className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
+        <p className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-950">
           Demo admin: you&apos;re seeing the preview database, including the fictional demo shop and campaign.{" "}
           <Link href="/demo" className="underline">
             Back to the demo menu
@@ -79,10 +79,10 @@ export default async function AdminPage() {
           <Tile label="DataForSEO" value={usd(Number(o.spend_today.dataforseo ?? 0))} />
           <Tile label="Gemini" value={usd(Number(o.spend_today.gemini ?? 0))} />
         </div>
-        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 dark:ring-slate-800">
+        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Last 14 days</caption>
-            <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400">
+            <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">Day</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">Assessments</th>
@@ -90,7 +90,7 @@ export default async function AdminPage() {
                 <th scope="col" className="px-3 py-2 text-right font-medium">API spend</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100">
               {o.daily.map((d) => (
                 <tr key={d.day}>
                   <td className="px-3 py-1.5">{d.day}</td>
@@ -106,13 +106,13 @@ export default async function AdminPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Customers ({customers.length})</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-600">
           Business details and status only. Customers&apos; Google data is never shown here. Every action is logged with your reason.
         </p>
-        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 dark:ring-slate-800">
+        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Customers</caption>
-            <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400">
+            <thead className="bg-slate-50 text-slate-600">
               <tr>
                 {["Business", "Owner", "Status", "Signed up", "Tracked", "Last check", "Changes", "Extend trial"].map((h) => (
                   <th key={h} scope="col" className="px-3 py-2 font-medium">
@@ -121,7 +121,7 @@ export default async function AdminPage() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100">
               {customers.map((c) => (
                 <tr key={c.id} className="align-top">
                   <td className="px-3 py-2">
@@ -153,9 +153,9 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold">Pricing</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-600">
           Now: {price(p.monthlyCents)}/month · {price(p.annualCents)}/year ({monthsFree(p)} months free) · agencies {price(p.agencyCents)} per location/month, minimum{" "}
           {p.agencyMinLocations}. Changes show on the website right away. Once card billing is live, new prices apply to new subscriptions; existing
           customers keep the price they signed up at.
@@ -170,7 +170,7 @@ export default async function AdminPage() {
         ) : (
           <ul className="flex flex-col gap-2 text-sm">
             {audit.map((a, i) => (
-              <li key={i} className="rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+              <li key={i} className="rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200">
                 <span className="text-slate-500">{new Date(a.created_at).toLocaleString("en-CA")}</span> · {a.admin_email ?? "?"} ·{" "}
                 <strong>{a.action}</strong> · {a.org_name ?? "—"} · &ldquo;{a.reason}&rdquo;
               </li>

@@ -12,13 +12,13 @@ const p = t.progress;
 function Status({ state }: { state: ProgressState }) {
   if (state.error)
     return (
-      <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+      <p role="alert" className="text-sm text-red-700">
         {state.error}
       </p>
     );
   if (state.ok)
     return (
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
+      <p role="status" className="text-sm text-green-700">
         {state.ok}
       </p>
     );
@@ -34,7 +34,7 @@ export function CheckNowForm() {
           {p.checkNow}
         </Button>
       </div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">{p.checkNote}</p>
+      <p className="text-xs text-slate-500">{p.checkNote}</p>
       <Status state={state} />
     </form>
   );

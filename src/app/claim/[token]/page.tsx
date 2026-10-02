@@ -14,10 +14,10 @@ const num = (n: number | null) => (n === null ? "—" : n.toLocaleString("en-US"
 
 function Stat({ label, value, note, bad }: { label: string; value: string; note?: string; bad?: boolean }) {
   return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-      <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${bad ? "text-red-700 dark:text-red-400" : ""}`}>{value}</p>
-      {note ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{note}</p> : null}
+    <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${bad ? "text-red-700" : ""}`}>{value}</p>
+      {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
     </div>
   );
 }
@@ -27,9 +27,9 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
   const claim = await lookupClaim(token);
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-slate-50">
       <header className="mx-auto flex w-full max-w-4xl items-center px-4 py-5">
-        <Link href="/" className="text-slate-900 dark:text-white">
+        <Link href="/" className="text-slate-900">
           <Logo className="text-lg" />
         </Link>
       </header>
@@ -37,7 +37,7 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
         {!claim ? (
           <div className="flex flex-col items-start gap-4 py-12">
             <h1 className="text-2xl font-semibold">This link has expired or doesn&apos;t exist.</h1>
-            <Link href="/" className="font-medium text-amber-700 underline dark:text-amber-400">
+            <Link href="/" className="font-medium text-gold-700 underline">
               Get a free assessment instead
             </Link>
           </div>
@@ -48,17 +48,17 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
             return (
               <>
                 <div>
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  <p className="text-sm font-medium text-gold-700">
                     Google ranking report · {claim.category} in {claim.city}
                   </p>
                   <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{claim.businessName}</h1>
-                  <p className="mt-1 text-slate-600 dark:text-slate-400">
+                  <p className="mt-1 text-slate-600">
                     When people search &ldquo;{claim.keyword}&rdquo; on Google, here&apos;s where you stand (checked{" "}
                     {new Date(`${r.checkedOn}T12:00:00Z`).toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}).
                   </p>
                 </div>
                 {r.dataSource === "sandbox" ? (
-                  <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+                  <p className="rounded-lg border border-gold-300 bg-gold-50 px-4 py-3 text-sm text-gold-950">
                     Sample data: this is a test report.
                   </p>
                 ) : null}
@@ -68,22 +68,22 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
                   <Stat label="Your Google position" value={rank(r.organicRank)} bad={r.organicRank === null || r.organicRank > 3} />
                   <Stat label="Directory sites in Google's top 10" value={String(r.directoriesInTop10)} note="Sites like Yelp taking spots your website could hold" />
                 </div>
-                <section className="flex flex-col items-center gap-4 rounded-2xl bg-slate-950 px-6 py-10 text-center text-white">
+                <section className="flex flex-col items-center gap-4 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-gold-50 px-6 py-10 text-center text-slate-900 ring-1 ring-rose-200">
                   <h2 className="max-w-xl text-xl font-semibold">
                     {claim.status === "claimed" ? "This report has been claimed." : "Claim your free dashboard to see who's ahead of you and what to fix first"}
                   </h2>
                   {claim.status === "claimed" ? (
-                    <Link href="/login" className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-400">
+                    <Link href="/login" className="rounded-lg bg-rose-700 px-6 py-3 font-semibold text-white hover:bg-rose-800">
                       Sign in
                     </Link>
                   ) : (
                     <>
-                      <p className="max-w-xl text-slate-300">
+                      <p className="max-w-xl text-slate-600">
                         We&apos;ll track your Google Maps spot, ranking and reviews every day, show you the businesses ahead of you, and measure what
                         each change you make actually does.
                       </p>
                       {claim.domain.endsWith(".test") ? (
-                        <p className="rounded-lg bg-sky-900 px-4 py-3 text-sm text-sky-100">
+                        <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-rose-200">
                           Demo: this is a fictional business, so claiming is turned off. A real shop would enter an email at its own website
                           here, get a sign-in link, and land on its dashboard with this report as its &ldquo;before&rdquo;.
                         </p>
@@ -96,7 +96,7 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
                 {claim.status !== "claimed" ? (
                   <form action={optOutAction} className="text-center">
                     <input type="hidden" name="token" value={token} />
-                    <button type="submit" className="text-sm text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200">
+                    <button type="submit" className="text-sm text-slate-500 underline hover:text-slate-800">
                       Not interested? Delete this report and don&apos;t contact {claim.businessName} again.
                     </button>
                   </form>

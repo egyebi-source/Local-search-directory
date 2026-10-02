@@ -26,7 +26,7 @@ export default async function AssessmentPage() {
       </div>
       {assessment ? (
         <>
-          <p className="text-slate-600 dark:text-slate-400">{t.assessment.subtitle(assessment.primaryKeyword)}</p>
+          <p className="text-slate-600">{t.assessment.subtitle(assessment.primaryKeyword)}</p>
           <SampleDataBanner source={assessment.dataSource} />
           {assessment.local ? (
             <LocalTiles l={toLocalSummary(assessment.local)} m={assessment.metrics} />

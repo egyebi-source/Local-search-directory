@@ -18,7 +18,7 @@ export function CopyButton({ text }: { text: string }) {
           setCopied(false);
         }
       }}
-      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-100"
     >
       {copied ? "Copied ✓" : "Copy"}
     </button>
@@ -33,12 +33,12 @@ export function RefreshPlanForm({ label }: { label: string }) {
         {pending ? "Writing your plan…" : label}
       </Button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+        <p role="status" className="text-sm text-green-700">
           {state.ok}
         </p>
       ) : null}

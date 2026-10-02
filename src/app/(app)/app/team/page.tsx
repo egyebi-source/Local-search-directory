@@ -33,14 +33,14 @@ export default async function TeamPage({ searchParams }: PageProps<"/app/team">)
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t.team.title}</h1>
       {errorMessage ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {errorMessage}
         </p>
       ) : null}
 
       <Card className="flex flex-col gap-3">
         <CardTitle>{t.team.members}</CardTitle>
-        <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
+        <ul className="divide-y divide-neutral-200">
           {members.map((m) => (
             <li key={m.userId} className="flex flex-wrap items-center gap-3 py-2">
               <span className="min-w-0 flex-1 break-words">
@@ -131,7 +131,7 @@ export default async function TeamPage({ searchParams }: PageProps<"/app/team">)
             {invites.length === 0 ? (
               <p className="text-sm opacity-70">{t.team.noInvites}</p>
             ) : (
-              <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
+              <ul className="divide-y divide-neutral-200">
                 {invites.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center gap-3 py-2">
                     <span className="min-w-0 flex-1 break-words">{i.email}</span>

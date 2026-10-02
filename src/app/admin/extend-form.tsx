@@ -11,7 +11,7 @@ export function ExtendTrialForm({ orgId }: { orgId: string }) {
       <label className="sr-only" htmlFor={`days-${orgId}`}>
         Days
       </label>
-      <select id={`days-${orgId}`} name="days" defaultValue="7" className="h-8 rounded border border-slate-300 bg-transparent px-1 text-xs dark:border-slate-700">
+      <select id={`days-${orgId}`} name="days" defaultValue="7" className="h-8 rounded border border-slate-300 bg-transparent px-1 text-xs">
         {[3, 7, 14, 30].map((d) => (
           <option key={d} value={d}>
             +{d}d
@@ -28,13 +28,13 @@ export function ExtendTrialForm({ orgId }: { orgId: string }) {
         minLength={5}
         maxLength={300}
         placeholder="Reason"
-        className="h-8 w-32 rounded border border-slate-300 bg-transparent px-2 text-xs dark:border-slate-700"
+        className="h-8 w-32 rounded border border-slate-300 bg-transparent px-2 text-xs"
       />
-      <button type="submit" disabled={pending} className="h-8 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-50 dark:bg-white dark:text-slate-900">
+      <button type="submit" disabled={pending} className="h-8 rounded bg-rose-700 px-2 text-xs font-medium text-white hover:bg-rose-800 disabled:opacity-50">
         Extend
       </button>
-      {state.error ? <span role="alert" className="basis-full text-xs text-red-700 dark:text-red-400">{state.error}</span> : null}
-      {state.ok ? <span role="status" className="basis-full text-xs text-green-700 dark:text-green-400">{state.ok}</span> : null}
+      {state.error ? <span role="alert" className="basis-full text-xs text-red-700">{state.error}</span> : null}
+      {state.ok ? <span role="status" className="basis-full text-xs text-green-700">{state.ok}</span> : null}
     </form>
   );
 }

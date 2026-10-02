@@ -9,7 +9,7 @@ export function AgencyCodeButton() {
   return (
     <form action={action} className="flex flex-col gap-3">
       {state.code ? (
-        <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+        <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
           <p className="text-sm">Give this code to your agency. It works once and expires in 7 days. We won&apos;t show it again.</p>
           <p className="mt-2 font-mono text-2xl font-semibold tracking-wider select-all">{state.code}</p>
         </div>
@@ -19,7 +19,7 @@ export function AgencyCodeButton() {
         </Button>
       )}
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}

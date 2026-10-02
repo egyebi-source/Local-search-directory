@@ -12,9 +12,9 @@ const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 const STATUS: Record<Topic["status"], { label: string; icon: string; cls: string; help: string }> = {
-  aligned: { label: "Aligned", icon: "✓", cls: "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200", help: "You have a page for this and you're on page 1." },
-  weak: { label: "Weak", icon: "◐", cls: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200", help: "A page shows up, but it doesn't use these words or isn't on page 1 yet." },
-  missing: { label: "Missing", icon: "✗", cls: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200", help: "None of your pages show up for these searches." },
+  aligned: { label: "Aligned", icon: "✓", cls: "bg-green-100 text-green-900", help: "You have a page for this and you're on page 1." },
+  weak: { label: "Weak", icon: "◐", cls: "bg-gold-100 text-gold-900", help: "A page shows up, but it doesn't use these words or isn't on page 1 yet." },
+  missing: { label: "Missing", icon: "✗", cls: "bg-red-100 text-red-900", help: "None of your pages show up for these searches." },
 };
 
 function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeof topicHistory>; inPlan: boolean }) {
@@ -23,11 +23,11 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
   const last = history.at(-1);
   const paying = new Set(t.keywords.flatMap((k) => k.adsBy ?? []));
   return (
-    <li className="flex flex-col gap-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <li className="flex flex-col gap-4 rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold capitalize">{t.name}</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             {num(t.searches)} searches/month · worth about {money(t.valueUsd)}/month in ad clicks
             {paying.size ? ` · ${paying.size} competitor${paying.size === 1 ? "" : "s"} paying for ads` : ""}
           </p>
@@ -37,7 +37,7 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
         </span>
       </div>
 
-      <p className="text-sm text-slate-700 dark:text-slate-300">
+      <p className="text-sm text-slate-700">
         {s.help}
         {t.page ? (
           <>
@@ -51,7 +51,7 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
 
       {last && first && first.day !== last.day && (first.best !== null || last.best !== null) ? (
         <p className="text-sm">
-          <span className="text-slate-600 dark:text-slate-400">Since {fmtDay(first.day)}: </span>
+          <span className="text-slate-600">Since {fmtDay(first.day)}: </span>
           best position {first.best === null ? "not ranked" : `#${first.best}`} → <strong>{last.best === null ? "not ranked" : `#${last.best}`}</strong> · searches on page 1: {first.inTop10} →{" "}
           <strong>{last.inTop10}</strong>
         </p>
@@ -60,7 +60,7 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Searches in this topic</caption>
-          <thead className="text-xs text-slate-600 dark:text-slate-400">
+          <thead className="text-xs text-slate-600">
             <tr>
               <th scope="col" className="py-1.5 pr-3 font-medium">Search</th>
               <th scope="col" className="py-1.5 pr-3 text-right font-medium">Searches/mo</th>
@@ -69,14 +69,14 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
               <th scope="col" className="py-1.5 font-medium">Who pays · who&apos;s top 3</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-slate-100">
             {t.keywords.slice(0, 8).map((k) => (
               <tr key={k.keyword}>
                 <td className="py-1.5 pr-3">{k.keyword}</td>
                 <td className="py-1.5 pr-3 text-right tabular-nums">{num(k.searches)}</td>
                 <td className="py-1.5 pr-3 text-right tabular-nums">{k.cpcUsd ? `$${k.cpcUsd.toFixed(2)}` : "—"}</td>
                 <td className="py-1.5 pr-3 text-right tabular-nums">{k.position ? `#${k.position}` : "—"}</td>
-                <td className="py-1.5 text-xs text-slate-600 dark:text-slate-400">
+                <td className="py-1.5 text-xs text-slate-600">
                   {k.adsBy === null ? "not checked" : `${k.adsBy.length ? `Ads: ${k.adsBy.join(", ")}` : "No ads"}${k.top3?.length ? ` · Top 3: ${k.top3.join(", ")}` : ""}`}
                 </td>
               </tr>
@@ -87,20 +87,20 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
       </div>
 
       {t.change ? (
-        <div className="flex flex-col gap-2 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+        <div className="flex flex-col gap-2 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
           <p className="font-semibold">The change to make: {t.change.title}</p>
-          <p className="text-sm text-slate-700 dark:text-slate-300">{t.change.why}</p>
-          <pre className="max-h-72 overflow-auto whitespace-pre-wrap font-sans text-sm text-slate-800 dark:text-slate-200">{t.change.content}</pre>
+          <p className="text-sm text-slate-700">{t.change.why}</p>
+          <pre className="max-h-72 overflow-auto whitespace-pre-wrap font-sans text-sm text-slate-800">{t.change.content}</pre>
           <div className="flex flex-wrap items-center gap-2">
             <CopyButton text={t.change.content} />
             {inPlan ? (
-              <Link href="/app/actions" className="text-sm font-medium text-green-700 underline dark:text-green-400">
+              <Link href="/app/actions" className="text-sm font-medium text-green-700 underline">
                 ✓ In your action plan
               </Link>
             ) : (
               <form action={addTopicAction}>
                 <input type="hidden" name="topic" value={t.name} />
-                <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900">
+                <button type="submit" className="rounded-md bg-rose-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-800">
                   Add to my action plan
                 </button>
               </form>
@@ -108,7 +108,7 @@ function TopicCard({ t, history, inPlan }: { t: Topic; history: ReturnType<typeo
           </div>
         </div>
       ) : (
-        <p className="text-sm text-green-800 dark:text-green-300">Nothing to change here. Keep the page up to date and keep collecting reviews.</p>
+        <p className="text-sm text-green-800">Nothing to change here. Keep the page up to date and keep collecting reviews.</p>
       )}
     </li>
   );
@@ -130,7 +130,7 @@ export default async function KeywordPlanPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Keyword plan</h1>
-        <p className="max-w-3xl text-slate-600 dark:text-slate-400">
+        <p className="max-w-3xl text-slate-600">
           What people type into Google to find a business like yours, which of those searches competitors pay for, whether your website
           matches each one, and exactly what to change.
         </p>
@@ -147,8 +147,8 @@ export default async function KeywordPlanPage() {
               ["Topics aligned", `${count("aligned")} of ${plan.topics.length}`],
               ["Topics to fix", String(count("weak") + count("missing"))],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-                <p className="text-xs text-slate-600 dark:text-slate-400">{label}</p>
+              <div key={label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <p className="text-xs text-slate-600">{label}</p>
                 <p className="mt-1 text-2xl font-semibold">{value}</p>
               </div>
             ))}

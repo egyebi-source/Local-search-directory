@@ -20,7 +20,7 @@ export function CreateCampaignForm() {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="country">Country</Label>
-        <select id="country" name="country" defaultValue="CA" className="h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm dark:border-neutral-700">
+        <select id="country" name="country" defaultValue="CA" className="h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm">
           <option value="CA">Canada</option>
           <option value="US">United States</option>
         </select>
@@ -29,7 +29,7 @@ export function CreateCampaignForm() {
         {pending ? "Looking up…" : "Create campaign"}
       </Button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 sm:basis-full dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700 sm:basis-full">
           {state.error}
         </p>
       ) : null}

@@ -27,7 +27,7 @@ function Delta({ v, suffix = "", invert = false }: { v: number | null; suffix?: 
   if (v === null || v === 0) return null;
   const good = invert ? v < 0 : v > 0;
   return (
-    <span className={good ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>
+    <span className={good ? "text-green-700" : "text-red-700"}>
       {" "}
       {v > 0 ? "▲" : "▼"} {Math.abs(v)}
       {suffix}
@@ -65,8 +65,8 @@ function Summary({ rows }: { rows: LocationRow[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((t) => (
-        <div key={t.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <p className="text-xs text-slate-600 dark:text-slate-400">{t.label}</p>
+        <div key={t.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+          <p className="text-xs text-slate-600">{t.label}</p>
           <p className="mt-1 text-2xl font-semibold">{t.value}</p>
         </div>
       ))}
@@ -108,7 +108,7 @@ function WeekChange({ v }: { v: number | null }) {
   if (!v) return null;
   return (
     <div className="text-xs">
-      <span className={v > 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>
+      <span className={v > 0 ? "text-green-700" : "text-red-700"}>
         {v > 0 ? "▲" : "▼"} {Math.abs(v)} this week
       </span>
     </div>
@@ -118,38 +118,38 @@ function WeekChange({ v }: { v: number | null }) {
 /** Phones: one card per location instead of a wide table. */
 function LocationCards({ agency, rows }: { agency: MyAgency; rows: LocationRow[] }) {
   return (
-    <ul className="flex flex-col divide-y divide-slate-200 md:hidden dark:divide-slate-800">
+    <ul className="flex flex-col divide-y divide-slate-200 md:hidden">
       {rows.map((r) => (
         <li key={r.orgId} className="flex flex-col gap-2 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium">{r.name}</div>
-              <div className="break-words text-xs text-slate-600 dark:text-slate-400">
+              <div className="break-words text-xs text-slate-600">
                 {[r.domain, r.serviceArea].filter(Boolean).join(" · ")}
               </div>
             </div>
             <RowActions agency={agency} r={r} />
           </div>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-            <dt className="text-slate-600 dark:text-slate-400">Visibility</dt>
+            <dt className="text-slate-600">Visibility</dt>
             <dd>
               {r.visibility === null ? "—" : `${r.visibility}%`}
               <Delta v={r.visibilityChange} />
             </dd>
-            <dt className="text-slate-600 dark:text-slate-400">{r.mainSearch ? `“${r.mainSearch}”` : "Main search"}</dt>
+            <dt className="text-slate-600">{r.mainSearch ? `“${r.mainSearch}”` : "Main search"}</dt>
             <dd>
               <Position trend={r.organicTrend} />
               <WeekChange v={r.weekChange} />
             </dd>
-            <dt className="text-slate-600 dark:text-slate-400">Google Maps</dt>
+            <dt className="text-slate-600">Google Maps</dt>
             <dd>{r.mapRank === null ? "—" : `#${r.mapRank}`}</dd>
-            <dt className="text-slate-600 dark:text-slate-400">Topics aligned</dt>
+            <dt className="text-slate-600">Topics aligned</dt>
             <dd>{r.topics ? `${r.topics.aligned} of ${r.topics.total}` : "no plan yet"}</dd>
-            <dt className="text-slate-600 dark:text-slate-400">To do</dt>
+            <dt className="text-slate-600">To do</dt>
             <dd>{r.openActions}</dd>
           </dl>
           {!r.hasOwner ? (
-            <p className="text-xs text-amber-800 dark:text-amber-300">No owner login yet: invite them from its Team page</p>
+            <p className="text-xs text-gold-800">No owner login yet: invite them from its Team page</p>
           ) : null}
         </li>
       ))}
@@ -165,8 +165,8 @@ function LocationsTable({ agency, rows }: { agency: MyAgency; rows: LocationRow[
       <LocationCards agency={agency} rows={rows} />
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs text-slate-600 dark:text-slate-400">
-            <tr className="border-b border-slate-200 dark:border-slate-800">
+          <thead className="text-xs text-slate-600">
+            <tr className="border-b border-slate-200">
               <th className="py-2 pr-3 font-medium">Location</th>
               <th className="py-2 pr-3 font-medium">Visibility</th>
               <th className="py-2 pr-3 font-medium">Main search on Google</th>
@@ -180,12 +180,12 @@ function LocationsTable({ agency, rows }: { agency: MyAgency; rows: LocationRow[
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.orgId} className="border-b border-slate-100 align-top dark:border-slate-800">
+              <tr key={r.orgId} className="border-b border-slate-100 align-top">
                 <td className="py-3 pr-3">
                   <div className="font-medium">{r.name}</div>
-                  <div className="text-xs text-slate-600 dark:text-slate-400">{[r.domain, r.serviceArea].filter(Boolean).join(" · ")}</div>
+                  <div className="text-xs text-slate-600">{[r.domain, r.serviceArea].filter(Boolean).join(" · ")}</div>
                   {!r.hasOwner ? (
-                    <div className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                    <div className="mt-1 text-xs text-gold-800">
                       No owner login yet: invite them from its Team page
                     </div>
                   ) : null}
@@ -195,7 +195,7 @@ function LocationsTable({ agency, rows }: { agency: MyAgency; rows: LocationRow[
                   <Delta v={r.visibilityChange} />
                 </td>
                 <td className="py-3 pr-3">
-                  {r.mainSearch ? <div className="text-xs text-slate-600 dark:text-slate-400">&ldquo;{r.mainSearch}&rdquo;</div> : null}
+                  {r.mainSearch ? <div className="text-xs text-slate-600">&ldquo;{r.mainSearch}&rdquo;</div> : null}
                   <Position trend={r.organicTrend} />
                   <WeekChange v={r.weekChange} />
                 </td>
@@ -229,14 +229,14 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
       <div className="flex max-w-2xl flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold">Manage many businesses with one login</h1>
-          <p className="mt-2 text-slate-700 dark:text-slate-300">
+          <p className="mt-2 text-slate-700">
             For marketing agencies, freelancers and networks of independent shops. See every location&apos;s rankings, keyword plan and
             to-do list in one place, and open any of them in one click.
           </p>
         </div>
         <Card className="flex flex-col gap-3">
           <CardTitle>Start your agency workspace</CardTitle>
-          <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
+          <ul className="list-disc pl-5 text-sm text-slate-700">
             <li>Free for 14 days, for up to 10 locations. No card needed.</li>
             <li>Then {price}. Mark it up for your clients however you like.</li>
             <li>Each business keeps its own account and data, and can remove your access at any time.</li>
@@ -259,7 +259,7 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
             <Link
               key={x.id}
               href={`/agency?a=${x.id}`}
-              className={`rounded-full px-3 py-1 ring-1 ring-slate-300 dark:ring-slate-700 ${x.id === agency.id ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : ""}`}
+              className={`rounded-full px-3 py-1 ring-1 ring-slate-300 ${x.id === agency.id ? "bg-rose-700 text-white ring-rose-700" : ""}`}
             >
               {x.name}
             </Link>
@@ -269,13 +269,13 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
 
       <div>
         <h1 className="text-2xl font-semibold">{agency.name}</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">{statusLine(agency)}</p>
+        <p className="text-sm text-slate-600">{statusLine(agency)}</p>
       </div>
 
       {!hasAccess(agency.access) ? (
         <p
           role="alert"
-          className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950 ring-1 ring-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:ring-amber-800"
+          className="rounded-lg bg-gold-50 p-3 text-sm text-gold-950 ring-1 ring-gold-300"
         >
           Your free trial has ended, so you can&apos;t open locations until you choose a plan ({price}). Online checkout for agencies is
           being added.
@@ -286,7 +286,7 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
 
       <Card className="flex flex-col gap-3">
         <CardTitle>Your locations</CardTitle>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-600">
           Visibility is the share of possible clicks each business gets for the searches we track. The main search shows its Google position
           when you started → now. Click Open to see the full dashboard, keyword plan and to-do list.
         </p>
@@ -296,7 +296,7 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="flex flex-col gap-3">
           <CardTitle>Add a new client</CardTitle>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             For a business that isn&apos;t on TorqueRank yet. You set it up; invite the owner later from its Team page.{" "}
             <Link href="/help#add-client" className="underline">
               Guide
@@ -306,7 +306,7 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
         </Card>
         <Card className="flex flex-col gap-3">
           <CardTitle>Connect a business that already uses TorqueRank</CardTitle>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             The owner signs in, goes to <strong>Team → Give an agency access</strong>, and sends you the code. We never connect a business
             without its owner&apos;s say-so.{" "}
             <Link href="/help#connect-client" className="underline">
@@ -317,7 +317,7 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
         </Card>
       </div>
 
-      <p className="text-xs text-slate-600 dark:text-slate-400">Price after the trial: {price}.</p>
+      <p className="text-xs text-slate-600">Price after the trial: {price}.</p>
     </div>
   );
 }

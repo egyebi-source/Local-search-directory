@@ -22,11 +22,11 @@ const RESULTS: Record<string, { ok: boolean; text: string }> = {
 };
 
 const fmt = (d: Date) => d.toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-const select = "h-10 w-full rounded-md border border-neutral-300 bg-transparent px-3 text-sm dark:border-neutral-700";
+const select = "h-10 w-full rounded-md border border-neutral-300 bg-transparent px-3 text-sm";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <h2 className="font-semibold">{title}</h2>
       {children}
     </section>
@@ -66,7 +66,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
     <div className="flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Google data</h1>
-        <p className="mt-1 text-slate-700 dark:text-slate-300">
+        <p className="mt-1 text-slate-700">
           Connect your own Google Search Console and Google Analytics (GA4) to see the real clicks Google sends you, the exact words people
           searched, and how many of them called or filled in a form.{" "}
           <Link href="/help#before-you-start" className="underline">
@@ -78,7 +78,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
       {result ? (
         <p
           role={result.ok ? "status" : "alert"}
-          className={`rounded-lg px-4 py-3 text-sm ${result.ok ? "bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" : "bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-100"}`}
+          className={`rounded-lg px-4 py-3 text-sm ${result.ok ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}
         >
           {result.text}
         </p>
@@ -86,13 +86,13 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
 
       {!conn && !cfg ? (
         <Card title="Coming soon on this site">
-          <p className="text-sm text-slate-700 dark:text-slate-300">
+          <p className="text-sm text-slate-700">
             Google connection isn&apos;t switched on here yet. Your dashboard keeps working with our own rank checks in the meantime.
           </p>
         </Card>
       ) : !conn ? (
         <Card title="Connect your Google accounts">
-          <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
+          <ul className="list-disc pl-5 text-sm text-slate-700">
             <li>You sign in on Google&apos;s own screen. We never see or store your Google password.</li>
             <li>
               <strong>Read-only:</strong> we can view Search Console and Analytics reports. We can&apos;t change your website, ads, settings or
@@ -111,7 +111,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
         </Card>
       ) : conn.status !== "active" ? (
         <Card title="Reconnect needed">
-          <p className="text-sm text-slate-700 dark:text-slate-300">
+          <p className="text-sm text-slate-700">
             Google stopped sharing data with us (access was removed, the password changed, or the connection expired). Your dashboard keeps the
             numbers it already has; reconnect to start updating again.
           </p>
@@ -127,11 +127,11 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
         <>
           <Card title="Connected">
             <dl className="grid gap-2 text-sm sm:grid-cols-[10rem_1fr]">
-              <dt className="text-slate-600 dark:text-slate-400">Search Console</dt>
+              <dt className="text-slate-600">Search Console</dt>
               <dd className="break-all">{conn.gsc ? conn.gsc.displayName : conn.scopes.searchConsole ? "Not chosen yet" : "Not allowed on Google's screen"}</dd>
-              <dt className="text-slate-600 dark:text-slate-400">Google Analytics</dt>
+              <dt className="text-slate-600">Google Analytics</dt>
               <dd className="break-words">{conn.ga4 ? conn.ga4.displayName : conn.scopes.analytics ? "Not chosen yet" : "Not allowed on Google's screen"}</dd>
-              <dt className="text-slate-600 dark:text-slate-400">Last updated</dt>
+              <dt className="text-slate-600">Last updated</dt>
               <dd>
                 {conn.lastSyncedAt ? fmt(conn.lastSyncedAt) : "Waiting for the first update (tonight)"}
                 {conn.lastError && conn.lastError !== "invalid_grant" ? " · Google was busy last time; we'll retry tomorrow" : ""}
@@ -145,7 +145,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
           </Card>
 
           {choices === "unavailable" ? (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+            <p role="alert" className="text-sm text-red-700">
               Google didn&apos;t answer just now. Please refresh in a minute.
             </p>
           ) : choices && typeof choices === "object" ? (
@@ -164,7 +164,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
                         <option value="">Don&apos;t use Search Console</option>
                       </select>
                     ) : (
-                      <span className="text-slate-600 dark:text-slate-400">
+                      <span className="text-slate-600">
                         This Google account has no verified websites in Search Console. Add your site at search.google.com/search-console, then
                         come back.
                       </span>
@@ -185,7 +185,7 @@ export default async function GooglePage({ searchParams }: PageProps<"/app/googl
                         <option value="">Don&apos;t use Analytics</option>
                       </select>
                     ) : (
-                      <span className="text-slate-600 dark:text-slate-400">This Google account has no GA4 properties.</span>
+                      <span className="text-slate-600">This Google account has no GA4 properties.</span>
                     )}
                   </label>
                 ) : null}

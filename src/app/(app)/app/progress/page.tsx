@@ -19,9 +19,9 @@ function Delta({ value }: { value: number | null }) {
   if (value === null) return <span className="text-slate-400">—</span>;
   if (value === 0) return <span className="text-slate-500">{p.same}</span>;
   return value > 0 ? (
-    <span className="font-semibold text-green-700 dark:text-green-400">{p.up(value)}</span>
+    <span className="font-semibold text-green-700">{p.up(value)}</span>
   ) : (
-    <span className="font-semibold text-red-700 dark:text-red-400">{p.down(-value)}</span>
+    <span className="font-semibold text-red-700">{p.down(-value)}</span>
   );
 }
 
@@ -35,7 +35,7 @@ function Comparison({ from, to }: { from: Check | null; to: Check | null }) {
   ];
   return (
     <table className="w-full text-left text-sm">
-      <thead className="text-slate-600 dark:text-slate-400">
+      <thead className="text-slate-600">
         <tr>
           <th scope="col" className="py-2 pr-4 font-medium" />
           <th scope="col" className="py-2 pr-4 font-medium">
@@ -51,10 +51,10 @@ function Comparison({ from, to }: { from: Check | null; to: Check | null }) {
           </th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+      <tbody className="divide-y divide-slate-100">
         {rows.map(([label, a, b, d]) => (
           <tr key={label}>
-            <th scope="row" className="py-2 pr-4 font-normal text-slate-600 dark:text-slate-400">
+            <th scope="row" className="py-2 pr-4 font-normal text-slate-600">
               {label}
             </th>
             <td className="py-2 pr-4 tabular-nums">{a}</td>
@@ -72,17 +72,17 @@ function Comparison({ from, to }: { from: Check | null; to: Check | null }) {
 function SearchCard({ s, markers }: { s: SearchProgress; markers: TrendMarker[] }) {
   const sample = s.history.some((c) => c.dataSource === "sandbox");
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h2 className="text-lg font-semibold">&ldquo;{s.keyword}&rdquo;</h2>
         <form action={stopTrackingAction}>
           <input type="hidden" name="id" value={s.id} />
-          <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200">
+          <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-800">
             {p.stop}
           </button>
         </form>
       </div>
-      {sample ? <p className="text-xs text-amber-700 dark:text-amber-400">{p.sample}</p> : null}
+      {sample ? <p className="text-xs text-gold-700">{p.sample}</p> : null}
       {s.history.length > 1 ? (
         <TrendChart
           title={`Google Maps spot and Google position for "${s.keyword}", by day`}
@@ -118,14 +118,14 @@ export default async function ProgressPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">{p.title}</h1>
-        <p className="max-w-2xl text-slate-600 dark:text-slate-400">{p.intro}</p>
-        <Link href="/app/digest" className="text-sm font-medium text-amber-700 underline dark:text-amber-400">
+        <p className="max-w-2xl text-slate-600">{p.intro}</p>
+        <Link href="/app/digest" className="text-sm font-medium text-gold-700 underline">
           {p.digestLink}
         </Link>
       </div>
 
       {main && main.history.length > 1 && main.history.some((c) => c.reviews !== null) ? (
-        <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+        <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
           <h2 className="text-lg font-semibold">{p.reviewsChart}</h2>
           <TrendChart
             title={p.reviewsChart}
@@ -148,13 +148,13 @@ export default async function ProgressPage() {
           <CheckNowForm />
         </div>
       ) : (
-        <p className="text-slate-600 dark:text-slate-400">{p.empty}</p>
+        <p className="text-slate-600">{p.empty}</p>
       )}
 
       {data.searches.length < TRACKED_SEARCH_LIMIT ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-xl font-semibold">{p.addTitle}</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{p.limit(TRACKED_SEARCH_LIMIT)}</p>
+          <p className="text-sm text-slate-600">{p.limit(TRACKED_SEARCH_LIMIT)}</p>
           <AddSearchForm />
         </section>
       ) : null}
@@ -162,7 +162,7 @@ export default async function ProgressPage() {
       <section className="flex flex-col gap-4">
         <div>
           <h2 className="text-xl font-semibold">{p.changesTitle}</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{p.changesIntro}</p>
+          <p className="text-sm text-slate-600">{p.changesIntro}</p>
         </div>
         <AddChangeForm today={today} />
         {data.changes.length === 0 ? (
@@ -173,28 +173,28 @@ export default async function ProgressPage() {
               const at = main ? checkOn(main.history, c.madeOn) : null;
               const later = main?.now && main.now.day > c.madeOn ? main.now : null;
               return (
-                <li key={c.id} className="flex flex-col gap-2 rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+                <li key={c.id} className="flex flex-col gap-2 rounded-xl bg-white p-4 ring-1 ring-slate-200">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="font-medium">
-                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ring-1 ring-slate-300 dark:ring-slate-600">
+                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ring-1 ring-slate-300">
                           {changeNo.get(c.id)}
                         </span>
                         {c.title}
                       </p>
                       <p className="text-xs text-slate-500">{fmtDay(c.madeOn)}</p>
-                      {c.note ? <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{c.note}</p> : null}
+                      {c.note ? <p className="mt-1 text-sm text-slate-700">{c.note}</p> : null}
                     </div>
                     <form action={deleteChangeAction}>
                       <input type="hidden" name="id" value={c.id} />
-                      <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200">
+                      <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-800">
                         {p.changeDelete}
                       </button>
                     </form>
                   </div>
                   {main ? (
                     <p className="text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">
+                      <span className="text-slate-600">
                         {p.afterChange} ({main.keyword}):{" "}
                       </span>
                       {at && later ? (

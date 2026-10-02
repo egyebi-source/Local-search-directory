@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
+/* TorqueRank is a light, white-background app (no dark mode): `dark:`
+   classes never apply, and form controls render light on every device. */
+@custom-variant dark (&:where(.tr-dark-mode-disabled, .tr-dark-mode-disabled *));
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1c1917;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,11 +17,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Brand accents: rose (actions, links, highlights) and gold (brand mark,
+   notes, badges). 600 is the chart step; 700 is for text and buttons. */
+@theme {
+  --color-rose-50: #fdf2f5;
+  --color-rose-100: #fbe3ea;
+  --color-rose-200: #f6c6d4;
+  --color-rose-300: #ec9db5;
+  --color-rose-400: #dc6f92;
+  --color-rose-500: #c9547c;
+  --color-rose-600: #b8436a;
+  --color-rose-700: #9a3456;
+  --color-rose-800: #7f2c48;
+  --color-rose-900: #6b283f;
+  --color-rose-950: #3c1121;
+
+  --color-gold-50: #fdf8ea;
+  --color-gold-100: #f9edc9;
+  --color-gold-200: #f1da93;
+  --color-gold-300: #e7c25e;
+  --color-gold-400: #dbab37;
+  --color-gold-500: #c9961f;
+  --color-gold-600: #b98516;
+  --color-gold-700: #946912;
+  --color-gold-800: #785415;
+  --color-gold-900: #634616;
+  --color-gold-950: #392608;
 }
 
 body {
@@ -25,36 +51,15 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Chart tokens (validated: scripts in the dataviz guide, light + dark). */
+/* Chart tokens: rose + gold, validated on white (dataviz validator: all
+   checks pass, CVD ΔE 14.6, contrast ≥ 3:1). */
 .viz-root {
   --viz-surface: #fcfcfb;
   --viz-ink: #0b0b0b;
   --viz-ink-2: #52514e;
   --viz-muted: #898781;
-  --viz-grid: #e1e0d9;
+  --viz-grid: #e9e7e2;
   --viz-axis: #c3c2b7;
-  --viz-1: #2a78d6;
-  --viz-2: #eb6834;
-}
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) .viz-root {
-    --viz-surface: #1a1a19;
-    --viz-ink: #ffffff;
-    --viz-ink-2: #c3c2b7;
-    --viz-muted: #898781;
-    --viz-grid: #2c2c2a;
-    --viz-axis: #383835;
-    --viz-1: #3987e5;
-    --viz-2: #d95926;
-  }
-}
-:root[data-theme="dark"] .viz-root {
-  --viz-surface: #1a1a19;
-  --viz-ink: #ffffff;
-  --viz-ink-2: #c3c2b7;
-  --viz-muted: #898781;
-  --viz-grid: #2c2c2a;
-  --viz-axis: #383835;
-  --viz-1: #3987e5;
-  --viz-2: #d95926;
+  --viz-1: #b8436a;
+  --viz-2: #b98516;
 }

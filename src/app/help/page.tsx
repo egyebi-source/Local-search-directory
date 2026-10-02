@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-6 flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <section id={id} className="scroll-mt-6 flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="flex flex-col gap-3 text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">{children}</div>
+      <div className="flex flex-col gap-3 text-[15px] leading-relaxed text-slate-800">{children}</div>
     </section>
   );
 }
@@ -25,7 +25,7 @@ function Steps({ children }: { children: ReactNode }) {
 }
 
 function Note({ children }: { children: ReactNode }) {
-  return <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950/60 dark:text-amber-100">{children}</p>;
+  return <p className="rounded-lg bg-gold-50 px-3 py-2 text-sm text-gold-950">{children}</p>;
 }
 
 function Where({ children }: { children: ReactNode }) {
@@ -55,12 +55,12 @@ const AGENCY_TOPICS = [
 
 function Toc({ title, items }: { title: string; items: readonly (readonly [string, string])[] }) {
   return (
-    <nav aria-label={title} className="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <nav aria-label={title} className="rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <h2 className="font-semibold">{title}</h2>
       <ul className="mt-2 flex flex-col gap-1 text-sm">
         {items.map(([id, label]) => (
           <li key={id}>
-            <a href={`#${id}`} className="text-blue-700 underline dark:text-blue-400">
+            <a href={`#${id}`} className="text-rose-700 underline">
               {label}
             </a>
           </li>
@@ -72,9 +72,9 @@ function Toc({ title, items }: { title: string; items: readonly (readonly [strin
 
 export default function HelpPage() {
   return (
-    <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-slate-50">
       <header className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-5">
-        <Link href="/" className="text-slate-900 dark:text-white">
+        <Link href="/" className="text-slate-900">
           <Logo className="text-lg" />
         </Link>
         <nav className="flex gap-4 text-sm">
@@ -90,7 +90,7 @@ export default function HelpPage() {
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pb-16">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Help: connecting your accounts</h1>
-          <p className="mt-2 text-slate-700 dark:text-slate-300">
+          <p className="mt-2 text-slate-700">
             Step-by-step instructions for business owners and for marketing agencies. Nothing here asks for a password: Google accounts are
             always connected on Google&apos;s own screen.
           </p>
@@ -157,7 +157,7 @@ export default function HelpPage() {
             While we&apos;re in early access, Google may show &ldquo;Google hasn&apos;t verified this app&rdquo;. Click <strong>Advanced</strong>{" "}
             then <strong>Continue</strong>. This goes away once Google finishes reviewing TorqueRank.
           </Note>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             What we can do with it: read your reports to build your dashboard and recommendations. What we can&apos;t: change your website,
             your Google settings, your ads or anything else. Your data is never sold, shared or used to train AI.
           </p>
@@ -177,7 +177,7 @@ export default function HelpPage() {
             </li>
             <li>Don&apos;t see them? Ask your web designer to set up a form event and a phone-click event. It&apos;s a small job.</li>
           </Steps>
-          <p className="text-sm text-slate-600 dark:text-slate-400">New key events count from the day you switch them on.</p>
+          <p className="text-sm text-slate-600">New key events count from the day you switch them on.</p>
         </Section>
 
         <Section id="reconnect" title="Reconnecting">
@@ -239,7 +239,7 @@ export default function HelpPage() {
             </li>
             <li>They get an email link that works once, for 7 days, and only for that email address.</li>
           </Steps>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             Members see everything and can mark work done. Owners can also manage billing, the team, Google and agency access.
           </p>
         </Section>
@@ -287,7 +287,7 @@ export default function HelpPage() {
               In your workspace, paste it under <Where>Connect a business that already uses TorqueRank</Where> and click <Where>Connect</Where>.
             </li>
           </Steps>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             &ldquo;That code didn&apos;t work&rdquo; means it was mistyped, already used, more than 7 days old, or the business is already
             managed by another agency. Ask the owner for a fresh code.
           </p>
@@ -354,7 +354,7 @@ export default function HelpPage() {
               30 days.
             </li>
           </Steps>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Only the agency&apos;s owner can do this; staff can&apos;t.</p>
+          <p className="text-sm text-slate-600">Only the agency&apos;s owner can do this; staff can&apos;t.</p>
         </Section>
       </main>
     </div>

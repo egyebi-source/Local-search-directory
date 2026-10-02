@@ -28,14 +28,14 @@ function Choices<T extends string>({
       {options.map((value) => (
         <label
           key={value}
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-amber-500 has-checked:border-amber-500 has-checked:bg-amber-50 has-checked:ring-1 has-checked:ring-amber-500 dark:border-slate-700 dark:has-checked:bg-amber-500/10"
+          className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-gold-500 has-checked:border-gold-500 has-checked:bg-gold-50 has-checked:ring-1 has-checked:ring-gold-500"
         >
           <input
             type={multiple ? "checkbox" : "radio"}
             name={name}
             value={value}
             required={!multiple}
-            className="h-4 w-4 accent-amber-600"
+            className="h-4 w-4 accent-gold-600"
           />
           {labels[value]}
         </label>
@@ -86,7 +86,7 @@ export function QuestionsForm({
             {(["local", "national"] as const).map((value) => (
               <label
                 key={value}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-amber-500 has-checked:border-amber-500 has-checked:bg-amber-50 has-checked:ring-1 has-checked:ring-amber-500 dark:border-slate-700 dark:has-checked:bg-amber-500/10"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-300 px-4 py-3 text-base transition-colors hover:border-gold-500 has-checked:border-gold-500 has-checked:bg-gold-50 has-checked:ring-1 has-checked:ring-gold-500"
               >
                 <input
                   type="radio"
@@ -94,7 +94,7 @@ export function QuestionsForm({
                   value={value}
                   checked={reach === value}
                   onChange={() => setReach(value)}
-                  className="h-4 w-4 accent-amber-600"
+                  className="h-4 w-4 accent-gold-600"
                 />
                 {t.start.reach[value]}
               </label>
@@ -118,7 +118,7 @@ export function QuestionsForm({
       title: q.goal,
       body: (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t.start.pickAll}</p>
+          <p className="text-sm text-slate-600">{t.start.pickAll}</p>
           <Choices name="goals" options={["calls", "form_leads", "walk_ins", "lower_ad_spend"] as const} labels={o.goal} multiple />
         </div>
       ),
@@ -139,7 +139,7 @@ export function QuestionsForm({
         <div className="flex flex-col gap-4">
           <Choices name="websiteManager" options={["self", "agency", "nobody"] as const} labels={o.manager} />
           {/* Cloudflare's bot check; it adds a hidden "cf-turnstile-response" field to the form. */}
-          {turnstileSiteKey ? <div className="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="auto" /> : null}
+          {turnstileSiteKey ? <div className="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="light" /> : null}
         </div>
       ),
     },
@@ -183,10 +183,10 @@ export function QuestionsForm({
         <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" nonce={nonce} />
       ) : null}
       <div>
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{t.start.stepOf(step + 1, steps.length)}</p>
+        <p className="text-sm font-medium text-slate-600">{t.start.stepOf(step + 1, steps.length)}</p>
         <div className="mt-2 grid grid-cols-6 gap-1.5" aria-hidden="true">
           {steps.map((_, i) => (
-            <span key={i} className={cn("h-1.5 rounded-full", i <= step ? "bg-amber-500" : "bg-slate-200 dark:bg-slate-700")} />
+            <span key={i} className={cn("h-1.5 rounded-full", i <= step ? "bg-gold-500" : "bg-slate-200")} />
           ))}
         </div>
       </div>
@@ -207,7 +207,7 @@ export function QuestionsForm({
       ))}
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
@@ -217,11 +217,11 @@ export function QuestionsForm({
           {t.start.back}
         </Button>
         {step < last ? (
-          <Button type="button" onClick={next} className="bg-amber-500 text-slate-950 hover:bg-amber-400">
+          <Button type="button" onClick={next} className="bg-rose-700 text-white hover:bg-rose-800">
             {t.start.next}
           </Button>
         ) : (
-          <Button type="submit" disabled={pending} className="bg-amber-500 text-slate-950 hover:bg-amber-400">
+          <Button type="submit" disabled={pending} className="bg-rose-700 text-white hover:bg-rose-800">
             {pending ? t.start.analyzing : t.start.finish}
           </Button>
         )}

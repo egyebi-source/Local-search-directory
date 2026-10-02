@@ -90,31 +90,32 @@ export default async function Home() {
   const pricing = await getPricing();
   const plans = plansFor(pricing);
   return (
-    <div className="flex flex-1 flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex flex-1 flex-col bg-white text-slate-900">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-amber-500/20 blur-3xl" />
+      <section className="relative overflow-hidden border-b border-rose-100 bg-gradient-to-b from-rose-50/70 via-white to-white">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-gold-200/40 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -left-40 top-40 h-[26rem] w-[26rem] rounded-full bg-rose-200/40 blur-3xl" />
         <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5">
           <Logo className="text-lg" />
-          <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium text-slate-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+          <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
             Sign in
           </Link>
         </header>
 
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-20 pt-8 lg:grid-cols-2 lg:pb-28 lg:pt-12">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">
+            <p className="text-sm font-semibold uppercase tracking-wider text-gold-700">
               For body shops, trades &amp; local manufacturers
             </p>
             <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Turn Google searches into <span className="text-amber-400">phone calls.</span>
+              Turn Google searches into <span className="text-rose-700">phone calls.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-slate-300">
+            <p className="mt-5 max-w-xl text-lg text-slate-600">
               See which searches your competitors pay for, where you&apos;re one push from page one, and exactly what to
               fix this week — in plain English.
             </p>
             <WebsiteForm id="hero-website" className="mt-8 max-w-xl" />
-            <p className="mt-3 text-sm text-slate-400">Free assessment · 7-day free trial · No credit card</p>
+            <p className="mt-3 text-sm text-slate-500">Free assessment · 7-day free trial · No credit card</p>
           </div>
           <DashboardPreview />
         </div>
@@ -128,28 +129,28 @@ export default async function Home() {
         <ol className="mt-12 grid gap-8 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s.title} className="flex flex-col gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 font-bold text-slate-950">{i + 1}</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-500 font-bold text-slate-950">{i + 1}</span>
               <h3 className="text-lg font-semibold">{s.title}</h3>
-              <p className="text-slate-600 dark:text-slate-300">{s.body}</p>
+              <p className="text-slate-600">{s.body}</p>
             </li>
           ))}
         </ol>
       </section>
 
       {/* Features */}
-      <section className="bg-slate-50 dark:bg-slate-900" aria-labelledby="features">
+      <section className="bg-gradient-to-b from-white via-rose-50/40 to-white" aria-labelledby="features">
         <div className="mx-auto w-full max-w-6xl px-4 py-20">
           <h2 id="features" className="max-w-2xl text-3xl font-bold tracking-tight">
             Everything you need to win local search — nothing you don&apos;t
           </h2>
           <div className="mt-12 grid gap-6 sm:grid-cols-2">
             {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-xl bg-white p-6 ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              <div key={f.title} className="rounded-xl bg-white p-6 ring-1 ring-slate-200">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-rose-50 text-rose-700 ring-1 ring-rose-100">
                   <Icon d={f.icon} />
                 </span>
                 <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">{f.body}</p>
+                <p className="mt-2 text-slate-600">{f.body}</p>
               </div>
             ))}
           </div>
@@ -162,7 +163,7 @@ export default async function Home() {
           <h2 id="trust" className="text-3xl font-bold tracking-tight">
             Your Google account stays yours
           </h2>
-          <p className="mt-4 text-slate-600 dark:text-slate-300">
+          <p className="mt-4 text-slate-600">
             When you connect Search Console or Analytics, you approve access on Google&apos;s own page. We never see your
             password, and you can disconnect in one click.
           </p>
@@ -175,7 +176,7 @@ export default async function Home() {
             "Delete your account and data any time, yourself",
           ].map((item) => (
             <li key={item} className="flex gap-3">
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-gold-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12l5 5L20 7" />
               </svg>
               <span>{item}</span>
@@ -185,14 +186,14 @@ export default async function Home() {
       </section>
 
       {/* Who it's for */}
-      <section className="bg-slate-50 dark:bg-slate-900" aria-labelledby="who">
+      <section className="border-y border-gold-100 bg-gold-50/40" aria-labelledby="who">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 text-center">
           <h2 id="who" className="text-2xl font-bold tracking-tight">
             Built for businesses that get work from local searches
           </h2>
           <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-2">
             {TRADES.map((t) => (
-              <li key={t} className="rounded-full bg-white px-4 py-1.5 text-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+              <li key={t} className="rounded-full bg-white px-4 py-1.5 text-sm ring-1 ring-slate-200">
                 {t}
               </li>
             ))}
@@ -205,7 +206,7 @@ export default async function Home() {
         <h2 id="pricing" className="text-center text-3xl font-bold tracking-tight">
           Simple pricing
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-slate-600 dark:text-slate-300">
+        <p className="mx-auto mt-3 max-w-xl text-center text-slate-600">
           Start with a free 7-day trial of the full dashboard. No credit card. Cancel any time.
         </p>
         <div className="mx-auto mt-10 grid max-w-3xl gap-6 md:grid-cols-2">
@@ -214,25 +215,25 @@ export default async function Home() {
               key={p.name}
               className={
                 p.highlight
-                  ? "relative flex flex-col rounded-2xl bg-slate-950 p-8 text-white ring-2 ring-amber-500"
-                  : "flex flex-col rounded-2xl bg-white p-8 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+                  ? "relative flex flex-col rounded-2xl bg-white p-8 shadow-xl shadow-rose-100 ring-2 ring-gold-500"
+                  : "flex flex-col rounded-2xl bg-white p-8 ring-1 ring-slate-200"
               }
             >
               {p.highlight ? (
-                <span className="absolute -top-3 left-8 rounded-full bg-amber-500 px-3 py-0.5 text-xs font-semibold text-slate-950">
+                <span className="absolute -top-3 left-8 rounded-full bg-gold-500 px-3 py-0.5 text-xs font-semibold text-slate-950">
                   2 months free
                 </span>
               ) : null}
               <h3 className="text-lg font-semibold">{p.name}</h3>
               <p className="mt-4 flex items-baseline gap-1">
                 <span className="text-4xl font-bold tracking-tight">{p.price}</span>
-                <span className={p.highlight ? "text-slate-300" : "text-slate-600 dark:text-slate-400"}>{p.period}</span>
+                <span className="text-slate-600">{p.period}</span>
               </p>
-              <p className={p.highlight ? "mt-1 text-sm text-slate-300" : "mt-1 text-sm text-slate-600 dark:text-slate-400"}>{p.note}</p>
+              <p className="mt-1 text-sm text-slate-600">{p.note}</p>
               <ul className="mt-6 flex flex-col gap-2 text-sm">
                 {INCLUDED.map((item) => (
                   <li key={item} className="flex gap-2">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-gold-600" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12l5 5L20 7" />
                     </svg>
                     {item}
@@ -242,24 +243,24 @@ export default async function Home() {
             </div>
           ))}
         </div>
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">Prices in US dollars. Your bank converts to your currency. Applicable taxes extra.</p>
+        <p className="mt-6 text-center text-xs text-slate-500">Prices in US dollars. Your bank converts to your currency. Applicable taxes extra.</p>
       </section>
 
       {/* Final CTA */}
-      <section className="bg-slate-950 text-white" aria-labelledby="cta">
+      <section className="border-t border-rose-100 bg-gradient-to-b from-white to-rose-50/70" aria-labelledby="cta">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center">
           <h2 id="cta" className="text-3xl font-bold tracking-tight sm:text-4xl">
             See what you&apos;re missing in under a minute
           </h2>
-          <p className="mt-4 text-lg text-slate-300">
+          <p className="mt-4 text-lg text-slate-600">
             Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then {usd(pricing.monthlyCents)} USD/month or {usd(pricing.annualCents)} USD/year.
           </p>
           <WebsiteForm id="cta-website" className="mt-8 max-w-xl" />
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 dark:border-slate-800">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-slate-600 sm:flex-row dark:text-slate-400">
+      <footer className="border-t border-slate-200">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-slate-600 sm:flex-row">
           <Logo />
           <p>© {new Date().getFullYear()} TorqueRank · Made in Canada</p>
         </div>

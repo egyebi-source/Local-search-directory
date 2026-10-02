@@ -12,7 +12,7 @@ function Change({ value, suffix = "%" }: { value: number | null; suffix?: string
   if (value === null || value === 0) return null;
   const up = value > 0;
   return (
-    <span className={`ml-1.5 text-xs font-medium ${up ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+    <span className={`ml-1.5 text-xs font-medium ${up ? "text-green-700" : "text-red-700"}`}>
       {up ? "▲" : "▼"} {Math.abs(value)}
       {suffix}
     </span>
@@ -22,12 +22,12 @@ function Change({ value, suffix = "%" }: { value: number | null; suffix?: string
 function Stat({ label, value, change, sub }: { label: string; value: string; change?: React.ReactNode; sub?: string }) {
   return (
     <div>
-      <p className="text-xs text-slate-600 dark:text-slate-400">{label}</p>
+      <p className="text-xs text-slate-600">{label}</p>
       <p className="mt-0.5 text-2xl font-semibold">
         {value}
         {change}
       </p>
-      {sub ? <p className="text-xs text-slate-500 dark:text-slate-400">{sub}</p> : null}
+      {sub ? <p className="text-xs text-slate-500">{sub}</p> : null}
     </div>
   );
 }
@@ -35,11 +35,11 @@ function Stat({ label, value, change, sub }: { label: string; value: string; cha
 function Queries({ title, rows, empty }: { title: string; rows: QueryRow[]; empty: string }) {
   return (
     <div className="min-w-0">
-      <p className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-400">{title}</p>
+      <p className="mb-2 text-xs font-medium text-slate-600">{title}</p>
       {rows.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-slate-600 dark:text-slate-400">
+            <thead className="text-xs text-slate-600">
               <tr>
                 <th className="py-1 pr-2 font-medium">Search</th>
                 <th className="py-1 pr-2 text-right font-medium">Clicks</th>
@@ -49,7 +49,7 @@ function Queries({ title, rows, empty }: { title: string; rows: QueryRow[]; empt
             </thead>
             <tbody>
               {rows.map((q) => (
-                <tr key={q.query} className="border-t border-slate-100 dark:border-slate-800">
+                <tr key={q.query} className="border-t border-slate-100">
                   <td className="py-1.5 pr-2 break-words">{q.query}</td>
                   <td className="py-1.5 pr-2 text-right tabular-nums">{num(q.clicks)}</td>
                   <td className="py-1.5 pr-2 text-right tabular-nums">{num(q.impressions)}</td>
@@ -72,7 +72,7 @@ export function GooglePanel({ g, canConnect }: { g: GoogleData; canConnect: bool
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <h2 className="text-base font-semibold">Your Google data</h2>
       {c ? (
-        <p className="text-xs text-slate-600 dark:text-slate-400">
+        <p className="text-xs text-slate-600">
           From your own Search Console and Analytics
           {g.gsc ? ` · through ${fmtDay(g.gsc.through)}` : ""}
           {g.stale ? " · not updated for 2+ days" : ""} ·{" "}
@@ -86,9 +86,9 @@ export function GooglePanel({ g, canConnect }: { g: GoogleData; canConnect: bool
 
   if (!c || (!g.gsc && !g.ga4)) {
     return (
-      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 lg:col-span-3 dark:bg-slate-900 dark:ring-slate-800">
+      <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 lg:col-span-3">
         {header}
-        <p className="text-sm text-slate-700 dark:text-slate-300">
+        <p className="text-sm text-slate-700">
           {!c
             ? "See the real clicks Google sends you, the exact words people searched, and how many of them called or filled in a form."
             : c.status !== "active"
@@ -98,7 +98,7 @@ export function GooglePanel({ g, canConnect }: { g: GoogleData; canConnect: bool
                 : "Connected. Your numbers appear after tonight's update."}
         </p>
         {!c || c.status !== "active" || (!c.gsc && !c.ga4) ? (
-          <Link href="/app/google" className="self-start rounded-md bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800">
+          <Link href="/app/google" className="self-start rounded-md bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-800">
             {canConnect ? (!c ? "Connect Google (read-only)" : c.status !== "active" ? "Reconnect Google" : "Choose website") : "See Google data settings"}
           </Link>
         ) : null}
@@ -107,10 +107,10 @@ export function GooglePanel({ g, canConnect }: { g: GoogleData; canConnect: bool
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 lg:col-span-3 dark:bg-slate-900 dark:ring-slate-800">
+    <section className="flex flex-col gap-4 rounded-xl bg-white p-5 ring-1 ring-slate-200 lg:col-span-3">
       {header}
       {c.status !== "active" ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 dark:bg-red-950 dark:text-red-100">
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900">
           Google stopped sharing your data, so these numbers aren&apos;t updating.{" "}
           <Link href="/app/google" className="font-semibold underline">
             Reconnect
@@ -166,7 +166,7 @@ export function GooglePanel({ g, canConnect }: { g: GoogleData; canConnect: bool
           <Queries title="Quickest wins: seen often, just off the top 3" rows={g.gsc.almostThere} empty="None right now." />
         </div>
       ) : null}
-      <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950/60 dark:text-amber-100">
+      <p className="rounded-lg bg-gold-50 px-3 py-2 text-sm text-gold-950">
         <span className="font-semibold">What this means: </span>
         {googleNote(g)}
       </p>

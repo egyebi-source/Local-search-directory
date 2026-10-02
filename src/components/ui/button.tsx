@@ -4,13 +4,13 @@ import { cn } from "@/lib/utils";
 
 // shadcn/ui-style button (hand-added; same API as `npx shadcn add button`).
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-blue-700 text-white hover:bg-blue-800",
-        outline: "border border-neutral-300 bg-transparent hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800",
-        ghost: "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+        default: "bg-rose-700 text-white shadow-sm hover:bg-rose-800",
+        outline: "border border-rose-200 bg-white text-rose-800 hover:bg-rose-50",
+        ghost: "hover:bg-rose-50 hover:text-rose-800",
         destructive: "bg-red-700 text-white hover:bg-red-800",
       },
       size: {

@@ -8,7 +8,7 @@ const usd = (n: number | null) => (n === null || n <= 0 ? "—" : `$${n.toFixed(
 export function SampleDataBanner({ source }: { source: AssessmentResult["dataSource"] }) {
   if (source !== "sandbox") return null;
   return (
-    <p role="note" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+    <p role="note" className="rounded-lg border border-gold-300 bg-gold-50 px-4 py-3 text-sm text-gold-950">
       {a.sample}
     </p>
   );
@@ -24,8 +24,8 @@ export function MetricTiles({ m }: { m: AssessmentResult["metrics"] }) {
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <dt className="text-sm text-slate-600 dark:text-slate-400">{tile.label}</dt>
+        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+          <dt className="text-sm text-slate-600">{tile.label}</dt>
           <dd className="mt-1 text-2xl font-semibold tabular-nums">{tile.value}</dd>
         </div>
       ))}
@@ -63,10 +63,10 @@ export function LocalTiles({ l, m }: { l: LocalSummary; m: AssessmentResult["met
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <dt className="text-sm text-slate-600 dark:text-slate-400">{tile.label}</dt>
-          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${tile.bad ? "text-red-700 dark:text-red-400" : ""}`}>{tile.value}</dd>
-          {tile.note ? <dd className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tile.note}</dd> : null}
+        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+          <dt className="text-sm text-slate-600">{tile.label}</dt>
+          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${tile.bad ? "text-red-700" : ""}`}>{tile.value}</dd>
+          {tile.note ? <dd className="mt-1 text-xs text-slate-500">{tile.note}</dd> : null}
         </div>
       ))}
     </dl>
@@ -82,7 +82,7 @@ export function LeadersTable({ l }: { l: LocalVisibility }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-semibold">{L.leadersTitle}</h2>
-      <p className="text-sm text-slate-600 dark:text-slate-400">{L.leadersBody(l.keyword)}</p>
+      <p className="text-sm text-slate-600">{L.leadersBody(l.keyword)}</p>
       <Table caption={L.leadersTitle} head={[L.colRank, L.colBusiness, L.rating, L.colReviews]} rows={rows} />
     </section>
   );
@@ -92,16 +92,16 @@ export function InsightCards({ insights, lockedCount = 0 }: { insights: Insight[
   return (
     <ol className="flex flex-col gap-3">
       {insights.map((i, n) => (
-        <li key={n} className="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+        <li key={n} className="rounded-xl bg-white p-5 ring-1 ring-slate-200">
           <h3 className="font-semibold">{i.title}</h3>
-          <p className="mt-1 text-slate-700 dark:text-slate-300">{i.detail}</p>
+          <p className="mt-1 text-slate-700">{i.detail}</p>
         </li>
       ))}
       {/* Locked items carry no content at all: the text never leaves the server. */}
       {Array.from({ length: lockedCount }, (_, n) => (
         <li
           key={`locked-${n}`}
-          className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-5 text-slate-500 dark:border-slate-700 dark:text-slate-400"
+          className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-5 text-slate-500"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -116,10 +116,10 @@ export function InsightCards({ insights, lockedCount = 0 }: { insights: Insight[
 
 function Table({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
   return (
-    <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 dark:ring-slate-800">
+    <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{caption}</caption>
-        <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400">
+        <thead className="bg-slate-50 text-slate-600">
           <tr>
             {head.map((h, i) => (
               <th key={h} scope="col" className={i === 0 ? "px-4 py-2 font-medium" : "px-4 py-2 text-right font-medium"}>
@@ -128,7 +128,7 @@ function Table({ caption, head, rows }: { caption: string; head: string[]; rows:
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <tbody className="divide-y divide-slate-100">
           {rows.length === 0 ? (
             <tr>
               <td colSpan={head.length} className="px-4 py-3 text-slate-500">
@@ -161,7 +161,7 @@ export function FullDetails({ r }: { r: AssessmentResult }) {
       {r.local ? <LeadersTable l={r.local} /> : null}
       <MarketDetails r={r} />
       {others.map((m) => (
-        <section key={m.country} className="flex flex-col gap-6 border-t border-slate-200 pt-8 dark:border-slate-800">
+        <section key={m.country} className="flex flex-col gap-6 border-t border-slate-200 pt-8">
           <h2 className="text-2xl font-semibold">{a.marketTitle(a.countryNames[m.country])}</h2>
           <MetricTiles m={m.metrics} />
           <MarketDetails r={m} />
@@ -176,7 +176,7 @@ function MarketDetails({ r }: { r: Market }) {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-semibold">{a.rescueTitle}</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400">{a.rescueBody}</p>
+        <p className="text-sm text-slate-600">{a.rescueBody}</p>
         <Table
           caption={a.rescueTitle}
           head={[a.colKeyword, a.colPosition, a.colSearches, a.colCpc]}
@@ -194,7 +194,7 @@ function MarketDetails({ r }: { r: Market }) {
           head={[a.colKeyword, a.colSearches, a.colCpc]}
           rows={r.topKeywords.map((k) => [k.keyword, k.monthlySearches.toLocaleString("en-US"), usd(k.cpcUsd)])}
         />
-        <p className="text-xs text-slate-500 dark:text-slate-400">{a.estimateNote}</p>
+        <p className="text-xs text-slate-500">{a.estimateNote}</p>
       </section>
     </div>
   );

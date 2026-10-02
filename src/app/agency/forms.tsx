@@ -9,13 +9,13 @@ import { addLocationAction, connectLocationAction, createAgencyAction, type Agen
 function Message({ state }: { state: AgencyState }) {
   if (state.error)
     return (
-      <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+      <p role="alert" className="text-sm text-red-700">
         {state.error}
       </p>
     );
   if (state.ok)
     return (
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
+      <p role="status" className="text-sm text-green-700">
         {state.ok}
       </p>
     );
@@ -38,7 +38,7 @@ export function CreateAgencyForm() {
   );
 }
 
-const select = "h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm dark:border-neutral-700";
+const select = "h-10 rounded-md border border-neutral-300 bg-transparent px-3 text-sm";
 
 export function AddLocationForm({ agencyId }: { agencyId: string }) {
   const [state, action, pending] = useActionState<AgencyState, FormData>(addLocationAction, {});

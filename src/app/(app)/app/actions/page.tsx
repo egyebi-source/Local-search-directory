@@ -17,33 +17,33 @@ const KIND: Record<ActionKind, { label: string; time: string }> = {
 function Card({ item }: { item: ActionItem }) {
   const k = KIND[item.kind];
   return (
-    <li className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <li className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">{k.label}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{k.label}</span>
         <span className="text-slate-500">{k.time}</span>
         {item.valueUsdMonth ? (
-          <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+          <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-800">
             Worth about ${item.valueUsdMonth.toLocaleString("en-US")}/month in ad clicks (estimate)
           </span>
         ) : null}
       </div>
       <h2 className="text-lg font-semibold">{item.title}</h2>
-      <p className="text-sm text-slate-700 dark:text-slate-300">{item.why}</p>
+      <p className="text-sm text-slate-700">{item.why}</p>
       {/* Plain text only: AI output is never rendered as HTML. */}
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm text-slate-800 ring-1 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800">
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm text-slate-800 ring-1 ring-slate-200">
         {item.content}
       </pre>
       <div className="flex flex-wrap items-center gap-2">
         <CopyButton text={item.content} />
         <form action={markDoneAction}>
           <input type="hidden" name="id" value={item.id} />
-          <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900">
+          <button type="submit" className="rounded-md bg-rose-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-800">
             I did this
           </button>
         </form>
         <form action={dismissActionAction}>
           <input type="hidden" name="id" value={item.id} />
-          <button type="submit" className="px-2 py-1.5 text-sm text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200">
+          <button type="submit" className="px-2 py-1.5 text-sm text-slate-500 underline hover:text-slate-800">
             Not for us
           </button>
         </form>
@@ -59,7 +59,7 @@ export default async function ActionPlanPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Action plan</h1>
-        <p className="max-w-2xl text-slate-600 dark:text-slate-400">
+        <p className="max-w-2xl text-slate-600">
           Ready-to-use changes, most valuable first. Copy, make the change, then tap <strong>I did this</strong>. We&apos;ll log it on your{" "}
           <Link href="/app/progress" className="underline">
             Progress
@@ -81,7 +81,7 @@ export default async function ActionPlanPage() {
           ))}
         </ol>
       ) : (
-        <p className="text-slate-600 dark:text-slate-400">{done.length ? "You've worked through your plan. Nice work." : "No plan yet."}</p>
+        <p className="text-slate-600">{done.length ? "You've worked through your plan. Nice work." : "No plan yet."}</p>
       )}
 
       <RefreshPlanForm label={open.length ? "Get fresh suggestions" : "Build my plan"} />
@@ -91,7 +91,7 @@ export default async function ActionPlanPage() {
           <h2 className="text-xl font-semibold">Done</h2>
           <ul className="flex flex-col gap-2">
             {done.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-4 py-3 text-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-4 py-3 text-sm ring-1 ring-slate-200">
                 <span>✓ {i.title}</span>
                 <span className="text-xs text-slate-500">{i.doneAt?.toLocaleDateString("en-CA")}</span>
               </li>

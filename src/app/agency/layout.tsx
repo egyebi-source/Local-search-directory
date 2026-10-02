@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/marketing/logo";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n/en";
 import { isDemoEmail } from "@/server/demo/demo";
@@ -9,12 +10,13 @@ export default async function AgencyLayout({ children }: { children: React.React
   const user = await requireUser();
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
+      <header className="border-b border-rose-100 bg-white">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-          <Link href="/agency" className="font-semibold">
-            {t.appName} <span className="font-normal opacity-70">for agencies</span>
+          <Link href="/agency" aria-label={`${t.appName} for agencies`} className="flex items-center gap-2">
+            <Logo />
+            <span className="text-sm font-medium text-gold-700">for agencies</span>
           </Link>
-          <nav className="flex gap-3 text-sm">
+          <nav className="flex gap-3 text-sm text-slate-700 [&_a:hover]:text-rose-700">
             <Link href="/agency">All locations</Link>
             <Link href="/help#agency-start">Help</Link>
           </nav>
@@ -29,7 +31,7 @@ export default async function AgencyLayout({ children }: { children: React.React
         </div>
       </header>
       {isDemoEmail(user.email) ? (
-        <div className="border-b border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
+        <div className="border-b border-rose-300 bg-rose-50 text-rose-950">
           <p className="mx-auto w-full max-w-6xl px-4 py-2 text-sm">
             Demo account: the agency, businesses and numbers are fictional. <Link href="/demo" className="underline">Back to the demo menu</Link>
           </p>

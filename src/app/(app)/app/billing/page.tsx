@@ -24,14 +24,14 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
     <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="text-2xl font-semibold">Billing</h1>
       {done && !subscribed ? (
-        <p role="status" className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-100">
+        <p role="status" className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-900">
           Thanks! We&apos;re confirming your payment with Stripe; this page updates within a minute.
         </p>
       ) : null}
 
-      <section className="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <section className="rounded-xl bg-white p-5 ring-1 ring-slate-200">
         <h2 className="font-semibold">Your plan</h2>
-        <p className="mt-1 text-slate-700 dark:text-slate-300">
+        <p className="mt-1 text-slate-700">
           {subscribed
             ? `${org.billingInterval === "year" ? "Annual" : "Monthly"} plan${org.currentPeriodEnd ? `, renews ${fmt(org.currentPeriodEnd)}` : ""}.`
             : effective.kind === "agency"
@@ -41,16 +41,16 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
               : "No active plan."}
         </p>
         {org.planStatus === "past_due" ? (
-          <p className="mt-2 text-sm text-red-700 dark:text-red-400">Your last payment didn&apos;t go through. Update your card to keep your dashboard.</p>
+          <p className="mt-2 text-sm text-red-700">Your last payment didn&apos;t go through. Update your card to keep your dashboard.</p>
         ) : null}
       </section>
 
       {role === "agency" ? (
-        <p className="text-slate-600 dark:text-slate-400">Your agency plan covers this location. Only the business owner can manage its own billing.</p>
+        <p className="text-slate-600">Your agency plan covers this location. Only the business owner can manage its own billing.</p>
       ) : role !== "owner" ? (
-        <p className="text-slate-600 dark:text-slate-400">Only an owner of this business can manage billing.</p>
+        <p className="text-slate-600">Only an owner of this business can manage billing.</p>
       ) : !billingEnabled() ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <p className="rounded-lg border border-gold-300 bg-gold-50 px-4 py-3 text-sm text-gold-950">
           Card payments aren&apos;t switched on yet on this site. Prices: {usd(p.monthlyCents)}/month or {usd(p.annualCents)}/year (USD).
         </p>
       ) : subscribed ? (
@@ -59,7 +59,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">Choose a plan</h2>
           {state.kind === "trialing" ? (
-            <p className="text-sm text-slate-600 dark:text-slate-400">You won&apos;t be charged until your free trial ends on {fmt(org.trialEndsAt)}.</p>
+            <p className="text-sm text-slate-600">You won&apos;t be charged until your free trial ends on {fmt(org.trialEndsAt)}.</p>
           ) : null}
           <PlanPicker monthly={usd(p.monthlyCents)} annual={usd(p.annualCents)} annualNote={free > 0 ? `${free} months free` : "Billed yearly"} />
         </section>

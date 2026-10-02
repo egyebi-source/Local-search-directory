@@ -18,9 +18,9 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
   const canUnlock = Boolean((await cookies()).get(DRAFT_COOKIE));
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-slate-50">
       <header className="mx-auto flex w-full max-w-4xl items-center px-4 py-5">
-        <Link href="/" className="text-slate-900 dark:text-white">
+        <Link href="/" className="text-slate-900">
           <Logo className="text-lg" />
         </Link>
       </header>
@@ -28,7 +28,7 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
         {!teaser ? (
           <div className="flex flex-col items-start gap-4 py-12">
             <h1 className="text-2xl font-semibold">{a.expired}</h1>
-            <Link href="/" className="font-medium text-amber-700 underline dark:text-amber-400">
+            <Link href="/" className="font-medium text-gold-700 underline">
               {a.ownCta}
             </Link>
           </div>
@@ -36,7 +36,7 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
           <>
             <div>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{a.title(teaser.domain)}</h1>
-              <p className="mt-1 text-slate-600 dark:text-slate-400">{a.subtitle(teaser.primaryKeyword)}</p>
+              <p className="mt-1 text-slate-600">{a.subtitle(teaser.primaryKeyword)}</p>
             </div>
             <SampleDataBanner source={teaser.dataSource} />
             {teaser.local ? <LocalTiles l={teaser.local} m={teaser.metrics} /> : <MetricTiles m={teaser.metrics} />}
@@ -44,30 +44,30 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
               <h2 className="text-xl font-semibold">{a.insightsTitle}</h2>
               <InsightCards insights={teaser.insights} lockedCount={teaser.lockedInsights} />
             </section>
-            <section className="flex flex-col items-center gap-3 rounded-2xl bg-slate-950 px-6 py-10 text-center text-white">
+            <section className="flex flex-col items-center gap-3 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-gold-50 px-6 py-10 text-center text-slate-900 ring-1 ring-rose-200">
               <p className="max-w-lg text-lg">{a.locked(teaser.lockedInsights)}</p>
-              {teaser.lockedLeaders ? <p className="max-w-lg text-slate-300">{a.local.lockedLeaders(teaser.lockedLeaders)}</p> : null}
+              {teaser.lockedLeaders ? <p className="max-w-lg text-slate-600">{a.local.lockedLeaders(teaser.lockedLeaders)}</p> : null}
               {teaser.otherCountries.length ? (
-                <p className="max-w-lg text-slate-300">
+                <p className="max-w-lg text-slate-600">
                   {a.alsoAssessed(teaser.otherCountries.map((c) => a.countryNames[c]).join(", "))}
                 </p>
               ) : null}
               {canUnlock ? (
                 <Link
                   href={`/login?callbackUrl=${encodeURIComponent("/onboarding/complete")}`}
-                  className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  className="rounded-lg bg-rose-700 px-6 py-3 font-semibold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
                 >
                   {a.unlock}
                 </Link>
               ) : (
                 <Link
                   href="/"
-                  className="rounded-lg bg-amber-500 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  className="rounded-lg bg-rose-700 px-6 py-3 font-semibold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
                 >
                   {a.ownCta}
                 </Link>
               )}
-              <p className="text-sm text-slate-400">{a.unlockNote}</p>
+              <p className="text-sm text-slate-500">{a.unlockNote}</p>
             </section>
           </>
         )}

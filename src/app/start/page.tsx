@@ -14,15 +14,15 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const siteKey = turnstileBypassed() ? null : turnstileSiteKey();
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-1 flex-col bg-slate-50">
       <header className="mx-auto flex w-full max-w-2xl items-center px-4 py-5">
-        <Link href="/" className="text-slate-900 dark:text-white">
+        <Link href="/" className="text-slate-900">
           <Logo className="text-lg" />
         </Link>
       </header>
       <main className="mx-auto w-full max-w-xl flex-1 px-4 pb-16 pt-4">
-        <p className="mb-6 text-slate-600 dark:text-slate-300">{t.start.intro}</p>
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8 dark:bg-slate-900 dark:ring-slate-800">
+        <p className="mb-6 text-slate-600">{t.start.intro}</p>
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
           <QuestionsForm website={prefill} turnstileSiteKey={siteKey} nonce={nonce} />
         </div>
       </main>

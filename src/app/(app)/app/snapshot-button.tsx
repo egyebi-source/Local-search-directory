@@ -12,7 +12,7 @@ export function SnapshotButton() {
         {pending ? "Checking your site… (about 30 seconds)" : "Build my dashboard now"}
       </Button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}

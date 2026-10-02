@@ -12,12 +12,12 @@ export function BuildPlanButton({ label }: { label: string }) {
         {pending ? "Researching your searches… (about a minute)" : label}
       </Button>
       {state.error ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+        <p role="status" className="text-sm text-green-700">
           {state.ok}
         </p>
       ) : null}

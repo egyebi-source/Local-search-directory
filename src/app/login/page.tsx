@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <h1 className="text-2xl font-semibold">{finishingSignup ? t.start.loginTitle : t.login.title}</h1>
         {finishingSignup ? <p className="text-sm opacity-80">{t.start.loginBody}</p> : null}
         {error ? (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-red-700">
             {error}
           </p>
         ) : null}

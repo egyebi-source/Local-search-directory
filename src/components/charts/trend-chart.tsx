@@ -99,7 +99,7 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
   return (
     <div className="viz-root flex flex-col gap-2">
       {series.length > 1 ? (
-        <ul className="flex flex-wrap gap-4 text-xs text-slate-600 dark:text-slate-300" aria-label="Legend">
+        <ul className="flex flex-wrap gap-4 text-xs text-slate-600" aria-label="Legend">
           {series.map((s) => (
             <li key={s.name} className="flex items-center gap-1.5">
               <LineKey color={s.color} />
@@ -116,7 +116,7 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
           aria-label={title}
           aria-describedby={descId}
           tabIndex={0}
-          className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           onPointerMove={(e) => pick(e.clientX)}
           onPointerLeave={() => setHover(null)}
           onFocus={() => setHover(last)}
@@ -214,18 +214,18 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
               }
             }}
             role="status"
-            className="pointer-events-none absolute top-0 w-40 rounded-md bg-white px-3 py-2 text-xs shadow-lg ring-1 ring-black/10 dark:bg-slate-900 dark:ring-white/10"
+            className="pointer-events-none absolute top-0 w-40 rounded-md bg-white px-3 py-2 text-xs shadow-lg ring-1 ring-black/10"
           >
-            <p className="mb-1 text-slate-500 dark:text-slate-400">{fmtDay(days[hover], true)}</p>
+            <p className="mb-1 text-slate-500">{fmtDay(days[hover], true)}</p>
             {series.map((s) => (
               <p key={s.name} className="flex items-center gap-1.5">
                 <LineKey color={s.color} width={12} />
-                <strong className="text-slate-900 dark:text-white">{fmtValue(kind, s.values[hover] ?? null)}</strong>
-                <span className="text-slate-500 dark:text-slate-400">{s.name}</span>
+                <strong className="text-slate-900">{fmtValue(kind, s.values[hover] ?? null)}</strong>
+                <span className="text-slate-500">{s.name}</span>
               </p>
             ))}
             {hoverMarkers.map((m) => (
-              <p key={m.n} className="mt-1 text-slate-600 dark:text-slate-300">
+              <p key={m.n} className="mt-1 text-slate-600">
                 ({m.n}) {m.label}
               </p>
             ))}
@@ -236,12 +236,12 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
       <p id={descId} className="sr-only">
         {series.map((s) => `${s.name}: ${fmtValue(kind, s.values[0] ?? null)} on ${fmtDay(days[0] ?? "", true)}, ${fmtValue(kind, s.values[last] ?? null)} on ${fmtDay(days[last] ?? "", true)}.`).join(" ")}
       </p>
-      <details className="text-xs text-slate-600 dark:text-slate-400">
+      <details className="text-xs text-slate-600">
         <summary className="cursor-pointer select-none">Show as a table</summary>
-        <div className="mt-2 max-h-56 overflow-auto rounded-md ring-1 ring-slate-200 dark:ring-slate-800">
+        <div className="mt-2 max-h-56 overflow-auto rounded-md ring-1 ring-slate-200">
           <table className="w-full text-left">
             <caption className="sr-only">{title}</caption>
-            <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900">
+            <thead className="sticky top-0 bg-slate-50">
               <tr>
                 <th scope="col" className="px-2 py-1 font-medium">Date</th>
                 {series.map((s) => (
@@ -253,7 +253,7 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
             </thead>
             <tbody>
               {days.map((d, i) => (
-                <tr key={d} className="border-t border-slate-100 dark:border-slate-800">
+                <tr key={d} className="border-t border-slate-100">
                   <td className="px-2 py-1">{fmtDay(d, true)}</td>
                   {series.map((s) => (
                     <td key={s.name} className="px-2 py-1 text-right tabular-nums">
