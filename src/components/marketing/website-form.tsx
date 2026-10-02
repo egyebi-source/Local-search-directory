@@ -11,7 +11,7 @@ export function WebsiteForm({ id, className }: { id: string; className?: string 
       <label htmlFor={id} className="sr-only">
         Your business website
       </label>
-      <div className="flex flex-col gap-2 rounded-xl bg-white p-2 shadow-lg ring-1 ring-rose-200 shadow-rose-100 sm:flex-row">
+      <div className="flex flex-col gap-2 rounded-lg border border-slate-300 bg-white p-1.5 sm:flex-row">
         <input
           id={id}
           name="website"
@@ -27,9 +27,9 @@ export function WebsiteForm({ id, className }: { id: string; className?: string 
         <button
           type="submit"
           disabled={pending}
-          className="h-12 rounded-lg bg-rose-700 px-6 text-base font-semibold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 disabled:opacity-60"
+          className="h-12 rounded-md bg-rose-700 px-6 text-base font-semibold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 disabled:opacity-60"
         >
-          {pending ? "Starting…" : "Get my free assessment"}
+          {pending ? "Checking…" : "Check my business"}
         </button>
       </div>
       {state.error ? (

@@ -1,260 +1,241 @@
 import Link from "next/link";
-import { getPricing, monthsFree, usd, type Pricing } from "@/server/billing/pricing";
-import { DashboardPreview } from "@/components/marketing/dashboard-preview";
+import googleData from "@/assets/screens/google-data.png";
+import keywordTopic from "@/assets/screens/keyword-topic.png";
+import progress from "@/assets/screens/progress.png";
 import { Logo } from "@/components/marketing/logo";
 import { WebsiteForm } from "@/components/marketing/website-form";
+import { getPricing, monthsFree, usd } from "@/server/billing/pricing";
 
-const STEPS = [
-  {
-    title: "Enter your website",
-    body: "We look up who's buying Google ads for the services you offer in your area, and what they pay per click.",
-  },
-  {
-    title: "See your rescue targets",
-    body: "The searches where you're already on page 2 or 3 — and your competitors are paying to show up. These are your fastest wins.",
-  },
-  {
-    title: "Get this week's fix list",
-    body: "A short, prioritized checklist in plain English, with ready-to-use wording for your website and Google profile.",
-  },
-];
-
-const FEATURES = [
-  {
-    title: "Competitor ad intelligence",
-    body: "Which keywords rivals in your area pay for, and roughly what they spend. Know where the money is before you spend yours.",
-    icon: "M3 17l6-6 4 4 8-8M15 7h6v6",
-  },
-  {
-    title: "Your real Google results",
-    body: "Connect Search Console and Analytics in two clicks to see actual clicks, calls and form leads — not guesses.",
-    icon: "M4 19V9m6 10V5m6 14v-7m4 7H2",
-  },
-  {
-    title: "Rescue targets",
-    body: "Keywords where a small push moves you from page 2 to page 1 — ranked by what each click would cost you in ads.",
-    icon: "M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z",
-  },
-  {
-    title: "A weekly action checklist",
-    body: "Clear next steps with suggested copy you can paste in, written for a business owner — not an SEO expert.",
-    icon: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9",
-  },
-];
-
-const TRADES = [
-  "Collision & auto body",
-  "Mechanics",
-  "HVAC",
-  "Plumbing",
-  "Electrical",
-  "Roofing",
-  "Landscaping",
-  "Machine shops",
-  "Metal fabrication",
-  "Custom manufacturing",
-];
-
-function plansFor(p: Pricing) {
-  const free = monthsFree(p);
-  return [
-    { name: "Monthly", price: usd(p.monthlyCents), period: "USD /month", note: "Billed monthly", highlight: false },
-    {
-      name: "Annual",
-      price: usd(p.annualCents),
-      period: "USD /year",
-      note: `About ${usd(Math.round(p.annualCents / 12))} USD a month, billed yearly${free > 0 ? ` (${free} month${free === 1 ? "" : "s"} free)` : ""}`,
-      highlight: true,
-    },
-  ];
-}
+// The landing page. Written for a shop owner, in their words; every picture
+// is a real screenshot of the product (demo shop, fictional numbers).
 
 const INCLUDED = [
-  "Full dashboard for one business",
-  "Competitor ad intelligence for your area",
-  "Google Search Console & Analytics connection",
-  "Rescue targets and weekly action checklist",
-  "Invite your team or agency",
+  "Your Google Maps spot and ranking, checked every day",
+  "Which searches your competitors pay for, and what a click costs",
+  "A keyword plan with the exact page or title to change",
+  "A short to-do list each week, with wording you can paste",
+  "Your own Search Console and Analytics numbers (read-only)",
+  "Before and after, for every change you make",
 ];
 
-function Icon({ d }: { d: string }) {
+function Check() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d={d} />
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-rose-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12l5 5L20 7" />
     </svg>
+  );
+}
+
+function Shot({ src, alt, caption, className = "", eager = false }: { src: typeof googleData; alt: string; caption: string; className?: string; eager?: boolean }) {
+  return (
+    <figure className={className}>
+      <div className="relative">
+        <div aria-hidden="true" className="absolute -bottom-3 -right-3 h-full w-full rounded-lg border border-gold-300" />
+        {/* A plain <img>: next/image adds an inline style attribute, which our CSP forbids. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src.src}
+          width={src.width}
+          height={src.height}
+          alt={alt}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          className="relative h-auto w-full rounded-lg border border-slate-200 bg-white shadow-sm"
+        />
+      </div>
+      <figcaption className="mt-5 font-display text-sm italic text-slate-500">{caption}</figcaption>
+    </figure>
   );
 }
 
 export default async function Home() {
   // Prices are set in the admin console.
   const pricing = await getPricing();
-  const plans = plansFor(pricing);
+  const free = monthsFree(pricing);
+
   return (
     <div className="flex flex-1 flex-col bg-white text-slate-900">
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-rose-100 bg-gradient-to-b from-rose-50/70 via-white to-white">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-gold-200/40 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -left-40 top-40 h-[26rem] w-[26rem] rounded-full bg-rose-200/40 blur-3xl" />
-        <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5">
+      <header className="border-b border-slate-200">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <Logo className="text-lg" />
-          <Link href="/login" className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
-            Sign in
-          </Link>
-        </header>
+          <nav className="flex items-center gap-5 text-sm text-slate-700">
+            <a href="#how" className="hidden hover:text-rose-700 sm:inline">
+              How it works
+            </a>
+            <a href="#pricing" className="hidden hover:text-rose-700 sm:inline">
+              Pricing
+            </a>
+            <Link href="/agency" className="hidden hover:text-rose-700 sm:inline">
+              For agencies
+            </Link>
+            <Link href="/login" className="font-medium text-rose-700 hover:text-rose-800">
+              Sign in
+            </Link>
+          </nav>
+        </div>
+      </header>
 
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-20 pt-8 lg:grid-cols-2 lg:pb-28 lg:pt-12">
+      {/* Hero */}
+      <section className="mx-auto grid w-full max-w-6xl gap-14 px-4 pb-20 pt-14 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-20">
+        <div>
+          <p className="flex items-center gap-3 text-sm font-medium text-gold-700">
+            <span aria-hidden="true" className="h-px w-8 bg-gold-500" />
+            For collision shops, mechanics and other local trades
+          </p>
+          <h1 className="mt-5 text-[2.6rem] font-medium leading-[1.08] sm:text-6xl">
+            Someone near you is paying Google for <em className="text-rose-700">your</em> customers.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-700">
+            Every day, people search &ldquo;collision repair near me&rdquo; and call whoever shows up first. Often that&apos;s a shop
+            paying for the ad. TorqueRank shows you which searches they&apos;re buying, where you already rank for free, and the one or two
+            fixes that will move you up.
+          </p>
+          <WebsiteForm id="hero-website" className="mt-8 max-w-xl" />
+          <p className="mt-3 text-sm text-slate-500">Free check. No card. It takes about a minute.</p>
+        </div>
+        <Shot
+          src={googleData}
+          alt="TorqueRank dashboard: clicks from Google, times seen, average position, visits and key actions, a daily clicks chart, and the searches people used."
+          caption="The dashboard of our demo shop, Acme Collision. Its numbers are made up; yours won't be."
+          eager
+        />
+      </section>
+
+      {/* First minute */}
+      <section className="border-y border-slate-200 bg-gold-50/40">
+        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-16 lg:grid-cols-[1fr_1.6fr]">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-gold-700">
-              For body shops, trades &amp; local manufacturers
-            </p>
-            <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Turn Google searches into <span className="text-rose-700">phone calls.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-slate-600">
-              See which searches your competitors pay for, where you&apos;re one push from page one, and exactly what to
-              fix this week — in plain English.
-            </p>
-            <WebsiteForm id="hero-website" className="mt-8 max-w-xl" />
-            <p className="mt-3 text-sm text-slate-500">Free assessment · 7-day free trial · No credit card</p>
+            <h2 className="text-3xl font-medium leading-tight">What you&apos;ll know a minute from now</h2>
+            <p className="mt-3 text-sm text-slate-500">From a sample report on a fictional Ottawa body shop.</p>
           </div>
-          <DashboardPreview />
+          <ol className="flex flex-col divide-y divide-gold-200 border-y border-gold-200">
+            {[
+              <>
+                You&apos;re <strong>#9 in Google Maps</strong> for &ldquo;collision repair ottawa&rdquo;. The three shops above you average{" "}
+                <strong>418 reviews</strong>. You have 48.
+              </>,
+              <>
+                Two competitors pay about <strong>$9.80 every time</strong> someone clicks their ad for that search.
+              </>,
+              <>
+                You&apos;re on page 2 for &ldquo;collision repair near me&rdquo;, which <strong>1,900 people</strong> search every month. One new
+                page could fix that.
+              </>,
+            ].map((line, i) => (
+              <li key={i} className="flex gap-5 py-5 text-lg leading-relaxed">
+                <span className="font-display text-2xl italic text-gold-600">{i + 1}</span>
+                <span>{line}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-20" aria-labelledby="how">
-        <h2 id="how" className="text-center text-3xl font-bold tracking-tight">
-          How it works
-        </h2>
-        <ol className="mt-12 grid gap-8 md:grid-cols-3">
-          {STEPS.map((s, i) => (
-            <li key={s.title} className="flex flex-col gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-500 font-bold text-slate-950">{i + 1}</span>
-              <h3 className="text-lg font-semibold">{s.title}</h3>
-              <p className="text-slate-600">{s.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <section id="how" className="mx-auto w-full max-w-6xl scroll-mt-6 px-4 py-24">
+        <div className="grid items-center gap-14 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wider text-rose-700">Every week</p>
+            <h2 className="mt-3 text-4xl font-medium leading-tight">It tells you exactly what to change.</h2>
+            <p className="mt-5 text-lg leading-relaxed text-slate-700">
+              Not &ldquo;improve your SEO&rdquo;. The page to add, the title to use, the words people actually type, and why. Hand it to
+              your web person, or do it yourself in an afternoon.
+            </p>
+          </div>
+          <Shot
+            src={keywordTopic}
+            alt="A keyword plan topic: bumper repair, 920 searches a month, who pays for ads, and the exact page to add."
+            caption="One topic from a keyword plan: what people search, who pays for it, and the page to add."
+          />
+        </div>
 
-      {/* Features */}
-      <section className="bg-gradient-to-b from-white via-rose-50/40 to-white" aria-labelledby="features">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20">
-          <h2 id="features" className="max-w-2xl text-3xl font-bold tracking-tight">
-            Everything you need to win local search — nothing you don&apos;t
-          </h2>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-xl bg-white p-6 ring-1 ring-slate-200">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-rose-50 text-rose-700 ring-1 ring-rose-100">
-                  <Icon d={f.icon} />
-                </span>
-                <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
-                <p className="mt-2 text-slate-600">{f.body}</p>
-              </div>
-            ))}
+        <div className="mt-28 grid items-center gap-14 lg:grid-cols-2">
+          <Shot
+            src={progress}
+            alt="Progress chart for collision repair ottawa: Google Maps spot from #9 to #4 and Google position from #14 to #6, with a before-and-after table."
+            caption="Sixty days of daily checks, with each change marked on the chart."
+            className="lg:order-1"
+          />
+          <div className="lg:order-2">
+            <p className="text-sm font-medium uppercase tracking-wider text-rose-700">Every day</p>
+            <h2 className="mt-3 text-4xl font-medium leading-tight">And it shows you whether it worked.</h2>
+            <p className="mt-5 text-lg leading-relaxed text-slate-700">
+              We check your Google Maps spot and your ranking every morning. Your first check is your &ldquo;before&rdquo;. Note what you
+              changed, and you&apos;ll see what moved after it, in plain numbers.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Trust */}
-      <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-20 md:grid-cols-2" aria-labelledby="trust">
-        <div>
-          <h2 id="trust" className="text-3xl font-bold tracking-tight">
-            Your Google account stays yours
-          </h2>
-          <p className="mt-4 text-slate-600">
-            When you connect Search Console or Analytics, you approve access on Google&apos;s own page. We never see your
-            password, and you can disconnect in one click.
-          </p>
+      {/* Why */}
+      <section className="border-t border-slate-200 bg-rose-50/50">
+        <div className="mx-auto w-full max-w-3xl px-4 py-20">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-rose-700">Why we built it</h2>
+          <blockquote className="mt-5 font-display text-2xl leading-relaxed text-slate-800 sm:text-[1.7rem]">
+            Most SEO tools are made for marketing agencies: hundreds of charts and a vocabulary nobody at a body shop has time to learn. We
+            wanted the opposite. One page, plain words, and a short list of things to do on Monday morning.
+          </blockquote>
+          <p className="mt-5 text-sm text-slate-600">The TorqueRank team</p>
         </div>
-        <ul className="flex flex-col gap-4">
+      </section>
+
+      {/* Trust */}
+      <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-20 md:grid-cols-[1fr_1.4fr]">
+        <h2 className="text-3xl font-medium leading-tight">Your Google account stays yours.</h2>
+        <ul className="flex flex-col gap-4 text-lg leading-relaxed text-slate-700">
           {[
-            "Read-only access — we can't change anything in your Google account",
-            "Your data is never sold, never used for ads, never used to train AI",
-            "Each business's data is kept strictly separate",
-            "Delete your account and data any time, yourself",
+            "You approve access on Google's own page. We never see your password.",
+            "Read-only. We can't change your website, your ads or your Google settings.",
+            "Your numbers are never sold, never used for ads, and never used to train AI.",
+            "Disconnect, or delete your account and data, whenever you like.",
           ].map((item) => (
             <li key={item} className="flex gap-3">
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-gold-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12l5 5L20 7" />
-              </svg>
+              <Check />
               <span>{item}</span>
             </li>
           ))}
         </ul>
       </section>
 
-      {/* Who it's for */}
-      <section className="border-y border-gold-100 bg-gold-50/40" aria-labelledby="who">
-        <div className="mx-auto w-full max-w-6xl px-4 py-16 text-center">
-          <h2 id="who" className="text-2xl font-bold tracking-tight">
-            Built for businesses that get work from local searches
-          </h2>
-          <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-2">
-            {TRADES.map((t) => (
-              <li key={t} className="rounded-full bg-white px-4 py-1.5 text-sm ring-1 ring-slate-200">
-                {t}
+      {/* Pricing */}
+      <section id="pricing" className="scroll-mt-6 border-t border-slate-200">
+        <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-20 lg:grid-cols-[1fr_1.4fr]">
+          <div>
+            <h2 className="text-3xl font-medium leading-tight">One price. Everything in it.</h2>
+            <p className="mt-6 font-display text-6xl font-medium">
+              {usd(pricing.monthlyCents)}
+              <span className="ml-2 font-sans text-lg font-normal text-slate-500">a month</span>
+            </p>
+            <p className="mt-3 text-slate-700">
+              Or {usd(pricing.annualCents)} a year{free > 0 ? ` (${free} month${free === 1 ? "" : "s"} free)` : ""}. Prices in US dollars,
+              taxes extra.
+            </p>
+            <p className="mt-1 text-slate-700">
+              Agencies: {usd(pricing.agencyCents)} per location.{" "}
+              <Link href="/help#agency-start" className="text-rose-700 underline">
+                How that works
+              </Link>
+            </p>
+            <p className="mt-6 inline-block border-l-2 border-gold-500 pl-3 text-sm text-slate-600">
+              The first 7 days are free, with no card. Cancel from your billing page in two clicks.
+            </p>
+          </div>
+          <ul className="grid content-start gap-x-8 gap-y-4 sm:grid-cols-2">
+            {INCLUDED.map((item) => (
+              <li key={item} className="flex gap-3 text-slate-700">
+                <Check />
+                <span>{item}</span>
               </li>
             ))}
           </ul>
         </div>
       </section>
 
-      {/* Pricing */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-20" aria-labelledby="pricing">
-        <h2 id="pricing" className="text-center text-3xl font-bold tracking-tight">
-          Simple pricing
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-slate-600">
-          Start with a free 7-day trial of the full dashboard. No credit card. Cancel any time.
-        </p>
-        <div className="mx-auto mt-10 grid max-w-3xl gap-6 md:grid-cols-2">
-          {plans.map((p) => (
-            <div
-              key={p.name}
-              className={
-                p.highlight
-                  ? "relative flex flex-col rounded-2xl bg-white p-8 shadow-xl shadow-rose-100 ring-2 ring-gold-500"
-                  : "flex flex-col rounded-2xl bg-white p-8 ring-1 ring-slate-200"
-              }
-            >
-              {p.highlight ? (
-                <span className="absolute -top-3 left-8 rounded-full bg-gold-500 px-3 py-0.5 text-xs font-semibold text-slate-950">
-                  2 months free
-                </span>
-              ) : null}
-              <h3 className="text-lg font-semibold">{p.name}</h3>
-              <p className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-bold tracking-tight">{p.price}</span>
-                <span className="text-slate-600">{p.period}</span>
-              </p>
-              <p className="mt-1 text-sm text-slate-600">{p.note}</p>
-              <ul className="mt-6 flex flex-col gap-2 text-sm">
-                {INCLUDED.map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-gold-600" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12l5 5L20 7" />
-                    </svg>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 text-center text-xs text-slate-500">Prices in US dollars. Your bank converts to your currency. Applicable taxes extra.</p>
-      </section>
-
-      {/* Final CTA */}
-      <section className="border-t border-rose-100 bg-gradient-to-b from-white to-rose-50/70" aria-labelledby="cta">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-20 text-center">
-          <h2 id="cta" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            See what you&apos;re missing in under a minute
-          </h2>
-          <p className="mt-4 text-lg text-slate-600">
-            Free assessment, then a 7-day free trial of the full dashboard. No credit card. Then {usd(pricing.monthlyCents)} USD/month or {usd(pricing.annualCents)} USD/year.
-          </p>
+      {/* Final call */}
+      <section className="border-t border-slate-200 bg-gold-50/40">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-start px-4 py-20 sm:items-center sm:text-center">
+          <h2 className="text-4xl font-medium leading-tight">Find out who&apos;s taking your calls.</h2>
+          <p className="mt-4 text-lg text-slate-700">Enter your website. You&apos;ll see your first results before your coffee&apos;s cold.</p>
           <WebsiteForm id="cta-website" className="mt-8 max-w-xl" />
         </div>
       </section>
@@ -262,6 +243,14 @@ export default async function Home() {
       <footer className="border-t border-slate-200">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-slate-600 sm:flex-row">
           <Logo />
+          <nav className="flex gap-5">
+            <Link href="/help" className="hover:text-rose-700">
+              Help
+            </Link>
+            <Link href="/login" className="hover:text-rose-700">
+              Sign in
+            </Link>
+          </nav>
           <p>© {new Date().getFullYear()} TorqueRank · Made in Canada</p>
         </div>
       </footer>

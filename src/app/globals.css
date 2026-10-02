@@ -13,8 +13,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-headline);
+  --font-mono: var(--font-code);
 }
 
 /* Brand accents: rose (actions, links, highlights) and gold (brand mark,
@@ -48,7 +49,14 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+/* Page and card titles in the newspaper serif. */
+h1,
+h2 {
+  font-family: var(--font-headline), Georgia, serif;
+  letter-spacing: -0.01em;
 }
 
 /* Chart tokens: rose + gold, validated on white (dataviz validator: all
