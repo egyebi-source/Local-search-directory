@@ -146,6 +146,7 @@ export const en = {
   trial: {
     daysLeft: (n: number) => (n === 1 ? "1 day left in your free trial" : `${n} days left in your free trial`),
     addCard: "Add a card",
+    choosePlan: "Choose a plan",
     lockedTitle: "Your free trial has ended",
     lockedBody:
       "Your dashboard is locked, but nothing has been deleted. Add a card to pick up where you left off. If you don't, your data will be deleted 30 days after your trial ended.",
@@ -156,7 +157,7 @@ export const en = {
     overviewTitle: "Overview",
     overviewBody: "Your Google Maps spot, ranking and reviews are tracked daily on the Progress page:",
     switchOrg: "Switch business",
-    nav: { overview: "Dashboard", actions: "Action plan", progress: "Progress", assessment: "First assessment", team: "Team" },
+    nav: { overview: "Dashboard", actions: "Action plan", progress: "Progress", assessment: "First assessment", team: "Team", billing: "Billing" },
   },
   progress: {
     title: "Progress",

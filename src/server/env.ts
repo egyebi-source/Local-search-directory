@@ -37,6 +37,11 @@ const serverEnvSchema = z.object({
   ASSESSMENTS_GLOBAL_PER_DAY: z.coerce.number().int().min(1).default(50),
   TURNSTILE_SECRET_KEY: optional(z.string().min(1)),
 
+  // Card billing (Stripe). Previews must use test keys (sk_test_...).
+  STRIPE_SECRET_KEY: optional(z.string().regex(/^sk_(test|live)_[A-Za-z0-9]+$/, "must be a Stripe secret key")),
+  STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[A-Za-z0-9]+$/, "must be a Stripe webhook secret")),
+  STRIPE_TAX: z.enum(["on", "off"]).default("off"),
+
   // Background jobs. Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
   CRON_SECRET: optional(z.string().min(32, "must be at least 32 characters")),
 });

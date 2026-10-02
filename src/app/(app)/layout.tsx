@@ -29,6 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/app/progress">{t.app.nav.progress}</Link>
             <Link href="/app/assessment">{t.app.nav.assessment}</Link>
             <Link href="/app/team">{t.app.nav.team}</Link>
+            <Link href="/app/billing">{t.app.nav.billing}</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             {orgs.length > 1 ? (
@@ -72,7 +73,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       ) : null}
       {access.kind === "trialing" ? (
         <div className="border-b border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-          <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">{t.trial.daysLeft(access.daysLeft)}</p>
+          <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
+            {t.trial.daysLeft(access.daysLeft)}{" "}
+            <Link href="/app/billing" className="font-medium underline">
+              {t.trial.choosePlan}
+            </Link>
+          </p>
         </div>
       ) : null}
       {/* Locked orgs never get here: the layout and withCurrentOrg() both send them to /locked. */}

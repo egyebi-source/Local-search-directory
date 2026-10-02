@@ -139,6 +139,13 @@ export const organizations = pgTable("organizations", {
     .default(sql`now() + interval '7 days'`),
   lockedAt: timestamp("locked_at", { withTimezone: true }),
   deleteAfter: timestamp("delete_after", { withTimezone: true }),
+  // Card billing (Stripe). Written only by the billing_apply function from
+  // verified Stripe webhooks; the app role can read but never change them.
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  billingInterval: text("billing_interval").$type<"month" | "year">(),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  billingEventAt: timestamp("billing_event_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -500,3 +507,10 @@ export const seoSnapshots = pgTable(
   },
   (t) => [uniqueIndex("seo_snapshots_org_day_idx").on(t.orgId, t.takenOn)],
 );
+
+// Stripe webhook events already processed (replays are ignored).
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  createdAt: createdAt(),
+});

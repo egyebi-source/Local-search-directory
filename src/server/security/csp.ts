@@ -25,7 +25,8 @@ export function buildPageCsp(nonce: string, isDev: boolean): string {
     "object-src 'none'",
     "base-uri 'self'",
     // Google sign-in: the login form's POST redirects to Google's consent page.
-    "form-action 'self' https://accounts.google.com",
+    // Google sign-in, and Stripe's hosted checkout / billing pages (we redirect there after a form).
+    "form-action 'self' https://accounts.google.com https://checkout.stripe.com https://billing.stripe.com",
     "frame-ancestors 'none'",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ];
