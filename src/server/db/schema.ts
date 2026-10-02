@@ -411,3 +411,41 @@ export const prospectSuppressions = pgTable("prospect_suppressions", {
   domainHash: text("domain_hash").primaryKey(),
   createdAt: createdAt(),
 });
+
+// --- Tenant: action plan (PRD Module 7/12) -------------------------------------
+
+export const actionKind = pgEnum("action_kind", [
+  "review_request",
+  "review_reply",
+  "gbp_profile",
+  "gbp_post",
+  "page_title",
+  "new_page",
+]);
+export type ActionKind = (typeof actionKind.enumValues)[number];
+export const actionStatus = pgEnum("action_status", ["open", "done", "dismissed"]);
+
+// Ready-to-use changes for the owner, ranked by estimated value. "I did
+// this" marks it done and logs a site_changes row so its effect is tracked.
+export const actionItems = pgTable(
+  "action_items",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    kind: actionKind("kind").notNull(),
+    title: text("title").notNull(),
+    why: text("why").notNull(),
+    // Plain text to copy and paste. Rendered as text, never as HTML.
+    content: text("content").notNull(),
+    keyword: text("keyword"),
+    valueUsdMonth: integer("value_usd_month"),
+    status: actionStatus("status").notNull().default("open"),
+    source: text("source").$type<"ai" | "rules">().notNull(),
+    changeId: uuid("change_id").references(() => siteChanges.id, { onDelete: "set null" }),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("action_items_org_status_idx").on(t.orgId, t.status)],
+);

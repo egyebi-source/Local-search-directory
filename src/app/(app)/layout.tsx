@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           <nav className="flex gap-3 text-sm">
             <Link href="/app">{t.app.nav.overview}</Link>
+            <Link href="/app/actions">{t.app.nav.actions}</Link>
             <Link href="/app/progress">{t.app.nav.progress}</Link>
             <Link href="/app/team">{t.app.nav.team}</Link>
           </nav>

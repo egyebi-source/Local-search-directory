@@ -134,10 +134,44 @@ try {
       );
     }
   }
+  const changeIds = [];
   for (const [d, title, note] of CHANGES) {
+    const id = randomUUID();
+    changeIds.push(id);
     await c.query(`INSERT INTO site_changes (id, org_id, title, note, made_on, created_by_user_id) VALUES ($1,$2,$3,$4,$5,$6)`, [
-      randomUUID(), org, title, note, dayStr(d - 60), owner,
+      id, org, title, note, dayStr(d - 60), owner,
     ]);
+  }
+
+  // Action plan: two items done (they became the first two changes), four open.
+  const ACTIONS = [
+    ["done", "review_request", CHANGES[0][1], "You had 48 Google reviews; the top 3 in Google Maps averaged 418.",
+      "Hi [first name], thanks for choosing Acme Collision. If you're happy with the work, would you mind leaving us a quick Google review? It takes a minute and really helps a local business: [your Google review link]", null, null, 0],
+    ["done", "new_page", CHANGES[1][1], "About 140 searches a month and you were #29.",
+      "Main heading: Collision Repair in Kanata\n\nSections: what we do, 3 real jobs with photos, how it works, why us, reviews, FAQ, call button.", "auto body shop kanata", 101, 1],
+    ["open", "page_title", "Rewrite the page title for \"collision repair near me\"",
+      "You're #9 on Google for \"collision repair near me\" (about 1,900 searches a month). A clear title that matches the search wins more clicks and helps you move up.",
+      "Page title (under 60 characters):\nCollision Repair Near Me | Acme Collision Ottawa\n\nMeta description (under 155 characters):\nNeed collision repair in Ottawa? Acme Collision offers free estimates, works with all insurers and gets you back on the road fast. Call today.",
+      "collision repair near me", 2166, null],
+    ["open", "new_page", "Add a dedicated page for \"bumper repair ottawa\"",
+      "About 390 searches a month, and you're #11, just off page 1. A page built for exactly this search is the most reliable way onto page 1.",
+      "Page address: /bumper-repair-ottawa\nMain heading: Bumper Repair in Ottawa\n\nSections:\n1. What we do: 2–3 sentences on bumper repair at Acme Collision.\n2. Photos of 3 real bumper jobs (before and after).\n3. Repair or replace? How we decide, and typical cost range [fill in].\n4. Insurance: we handle the claim.\n5. Reviews: 2–3 short quotes from real Google reviews.\n6. FAQ: \"How long does bumper repair take?\", \"Can you match my paint?\"\n7. Call button and quote form at the top and bottom.",
+      "bumper repair ottawa", 349, null],
+    ["open", "gbp_post", "Post an update to your Google Business Profile this week",
+      "Weekly posts keep your profile active and give searchers a reason to call you over the next listing.",
+      "Before/after of the week 🚗 This [car] came in after a [rear-end collision]. Acme Collision handled the insurance claim and had it back to the owner in [X] days. Need collision repair in Ottawa? Call us or book a free estimate.", null, null, null],
+    ["open", "review_reply", "Reply to every new review within 2 days",
+      "You've replied to all your old reviews. Keeping it up shows Google and customers you're active.",
+      "Positive review:\nThank you, [name]! We're glad your [car] is back to looking like new. We appreciate you choosing Acme Collision.\n\nNegative review:\nHi [name], thank you for the feedback, and I'm sorry we fell short. Please call me directly at [phone] so I can make this right. – [owner's name], Acme Collision", null, null, null],
+  ];
+  for (const [status, kind, title, why, content, keyword, value, changeIdx] of ACTIONS) {
+    await c.query(
+      `INSERT INTO action_items (id, org_id, kind, title, why, content, keyword, value_usd_month, status, source, change_id, done_at, created_at)
+       VALUES ($1,$2,$3::action_kind,$4,$5,$6,$7,$8,$9::action_status,'rules',$10,$11, now() - interval '55 days')`,
+      [randomUUID(), org, kind, title, why, content.replaceAll("\\n", "\n"), keyword, value, status,
+       changeIdx === null ? null : changeIds[changeIdx],
+       changeIdx === null ? null : new Date(Date.now() + (CHANGES[changeIdx][0] - 60) * 86_400_000)],
+    );
   }
 
   // A sample campaign of fictional shops (one already claimed: the demo shop).

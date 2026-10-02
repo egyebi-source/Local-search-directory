@@ -7,6 +7,7 @@ import { withOrg } from "@/server/db/tenant";
 import { demoEnabled, isDemoEmail } from "@/server/demo/demo";
 import { listUserOrganizations } from "@/server/db/tenant";
 import { loadProgress } from "@/server/tracking/progress";
+import { listActions } from "@/server/actions/plan";
 import { adminOverview, isPlatformAdmin } from "@/server/admin/admin";
 import { hasDb } from "./helpers";
 
@@ -50,6 +51,10 @@ describe.runIf(hasDb)("demo data", () => {
     expect(p.searches[0].now).toMatchObject({ reviews: 97 });
     expect(p.searches[0].now!.mapRank).toBeLessThanOrEqual(5);
     expect(p.changes).toHaveLength(4);
+    const plan = await withOrg(owner.id, orgs[0].id, (tx) => listActions(tx, orgs[0].id));
+    expect(plan.open).toHaveLength(4);
+    expect(plan.done).toHaveLength(2);
+    expect(plan.open[0].valueUsdMonth).toBe(2166);
     // The demo owner is not an admin; the demo admin is.
     expect(await isPlatformAdmin(owner.id)).toBe(false);
     const [admin] = await getDb().select().from(users).where(eq(users.email, "demo-admin@torquerank.test"));

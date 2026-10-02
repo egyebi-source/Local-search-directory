@@ -6,6 +6,7 @@ import { CLAIM_COOKIE } from "@/server/campaigns/claim-cookie";
 import { createOrganization, withOrg } from "@/server/db/tenant";
 import { setCurrentOrgCookie } from "@/server/org/current";
 import { seedBaseline } from "@/server/tracking/checks";
+import { refreshPlan } from "@/server/actions/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ export async function GET() {
       },
     }),
   );
+  // A first action plan from templates (no AI cost); "Get fresh suggestions" uses AI.
+  await refreshPlan(orgId, (fn) => withOrg(userId, orgId, fn), null);
   await markClaimed(token, orgId);
   jar.delete(CLAIM_COOKIE);
   await setCurrentOrgCookie(orgId);
