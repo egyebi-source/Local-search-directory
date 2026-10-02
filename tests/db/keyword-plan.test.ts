@@ -7,10 +7,8 @@ import {
   assemblePlan,
   buildKeywordPlan,
   changeFor,
-  coreOf,
   loadPlan,
   pageMatches,
-  relevant,
   savePlan,
   topicStatus,
 } from "@/server/keywords/plan";
@@ -20,16 +18,6 @@ import { createUser, expectDbError, hasDb } from "./helpers";
 const business = { name: "Acme Collision", city: "ottawa", domain: "acmecollision.ca", category: "Collision repair" };
 
 describe("keyword plan rules", () => {
-  it("groups searches by what people want, not how they phrase it", () => {
-    expect(coreOf("collision repair ottawa near me", ["ottawa"])).toBe("collision repair");
-    expect(coreOf("best bumper repair cost", ["ottawa"])).toBe("bumper repair");
-  });
-  it("drops the business's own name and searches by people who aren't customers", () => {
-    expect(relevant("car painting near me", ["acme"])).toBe(true);
-    expect(relevant("acme collision reviews", ["acme"])).toBe(false);
-    expect(relevant("collision repair jobs ottawa", ["acme"])).toBe(false);
-    expect(relevant("how to fix a dent yourself", ["acme"])).toBe(false);
-  });
   it("checks whether a page's title or heading uses the topic's words", () => {
     expect(pageMatches("bumper repair", "Bumper Repairs | Acme", null)).toBe(true);
     expect(pageMatches("bumper repair", "Acme – Auto Body Shop", "Trusted body shop")).toBe(false);
@@ -64,14 +52,14 @@ describe.runIf(hasDb)("keyword plan", () => {
     const d = fakeDataForSeo();
     const plan = await buildKeywordPlan(d.transport, { ...business, country: "CA" }, null);
     const names = plan.topics.map((t) => t.name);
-    expect(names).toEqual(expect.arrayContaining(["collision repair", "bumper repair", "car painting"]));
+    expect(names).toEqual(expect.arrayContaining(["collision repair", "bumper repair", "car paint"]));
     expect(names.join(" ")).not.toMatch(/jobs|acme|yourself/);
     const collision = plan.topics.find((t) => t.name === "collision repair")!;
     expect(collision.keywords.map((k) => k.keyword)).toEqual(expect.arrayContaining(["collision repair near me", "collision repair ottawa"]));
     // Fixture: the site ranks #14 for "collision repair near me" → weak.
     expect(collision.status).toBe("weak");
     expect(collision.keywords.find((k) => k.keyword === "collision repair ottawa")?.adsBy).toEqual(["rivalautobody.ca", "fastfixcollision.com"]);
-    expect(plan.topics.find((t) => t.name === "car painting")?.status).toBe("missing");
+    expect(plan.topics.find((t) => t.name === "car paint")?.status).toBe("missing");
     expect(plan.totalValueUsd).toBeGreaterThan(0);
   });
 
@@ -90,7 +78,7 @@ describe.runIf(hasDb)("keyword plan", () => {
     expect(await withOrg(owner.id, orgId, (tx) => addTopicToActions(tx, orgId, topic))).toBe(true);
     expect(await withOrg(owner.id, orgId, (tx) => addTopicToActions(tx, orgId, topic))).toBe(false);
     const { open } = await withOrg(owner.id, orgId, (tx) => listActions(tx, orgId));
-    expect(open.map((a) => a.title)).toContain('Add a "Car Painting" page');
+    expect(open.map((a) => a.title)).toContain('Add a "Car Paint" page');
 
     const other = await createUser("kw-other");
     const otherOrg = await createOrganization(other.id, { name: "Other" });

@@ -1,25 +1,56 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
-import { generate, type GeminiTransport } from "@/server/ai/gemini";
 import type { AssessmentResult } from "@/server/assessment/result";
 import { cityFrom } from "@/server/assessment/result";
+import { loadSnapshots } from "@/server/dashboard/snapshot";
+import { isHomepage } from "@/server/keywords/plan";
+import { judgeSearch, mainService } from "@/server/keywords/relevance";
 import { actionItems, orgAssessments, organizations, rankChecks, siteChanges, trackedSearches, type ActionKind } from "@/server/db/schema";
 import type { Tx } from "@/server/db/tenant";
 
-// The action plan (PRD Module 7/12): concrete, ready-to-paste changes,
-// ranked by estimated value. Gemini writes them when available; built-in
-// templates are the always-available fallback. Every item is plain text.
+// The action plan (PRD Module 7/12): concrete, ready-to-paste changes.
+// Every item is chosen because a number about *this* business calls for
+// it (its Google Maps spot, its reviews and rating against the shops above
+// it, what its website actually shows, the searches it's missing), and its
+// "why" cites that number. Nothing is suggested without evidence: a shop
+// with more reviews than its rivals is never told to get more reviews.
+// Every item is plain text.
+
+export type SiteEvidence = {
+  /** The homepage returned an error (or nothing) when we visited. */
+  broken: boolean;
+  /** The HTTP status we got, when known (403 = the site turned our visit away). */
+  status?: number | null;
+  homepage: { url: string; title: string | null; h1: string | null } | null;
+  /** Pages with no description for Google's results. */
+  missingDescription: string[];
+  /** Neither the address nor the homepage mentions the business's name: probably a directory or someone else's site. */
+  notTheirs?: boolean;
+};
+
+const NAME_NOISE = new Set("the and auto autos car cars collision collisions body shop shops repair repairs centre center service services inc ltd llc corp company group".split(" "));
+
+/** Does a website look like it belongs to this business? (Its name shows in the address or homepage.) */
+export function looksLikeTheirs(name: string, domain: string | null, homepage: { title: string | null; h1: string | null } | null): boolean {
+  const words = name.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3);
+  const distinctive = words.filter((w) => !NAME_NOISE.has(w));
+  const probe = distinctive.length ? distinctive : words;
+  if (!probe.length) return true;
+  const haystack = `${(domain ?? "").replace(/[^a-z0-9]/g, "")} ${(homepage?.title ?? "").toLowerCase()} ${(homepage?.h1 ?? "").toLowerCase()}`;
+  // Typos happen ("Collison"): a 5-letter start is enough.
+  return probe.some((w) => haystack.includes(w) || (w.length >= 6 && haystack.includes(w.slice(0, 5))));
+}
 
 export type PlanInput = {
   business: { name: string; category: string; city: string; website: string | null; goals: string[] };
+  /** The search we track for this business ("collision repair brampton"). */
+  mainSearch: string | null;
   local: { mapRank: number | null; reviews: number | null; rating: number | null; leaderAvgReviews: number | null; leaderAvgRating: number | null } | null;
+  site: SiteEvidence | null;
   keywords: { keyword: string; monthlySearches: number; cpcUsd: number; position: number | null }[];
 };
 
 export type Draft = { kind: ActionKind; title: string; why: string; content: string; keyword: string | null };
-
-export const KINDS = ["review_request", "review_reply", "gbp_profile", "gbp_post", "page_title", "new_page"] as const;
 
 /** Rough share of a search's clicks a page-1 result earns; used for estimated value only. */
 const PAGE_ONE_CLICK_SHARE = 0.1;
@@ -34,175 +65,229 @@ export function estimatedValue(input: PlanInput, keyword: string | null): number
 
 const title = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
+const n = (x: number) => x.toLocaleString("en-US");
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Deterministic plan from templates. Always produces something useful. */
+/** A heading that's a phone number, an address or a slogan without the service tells Google nothing. */
+export function weakHeading(h1: string | null, service: string): boolean {
+  if (!h1 || !/[a-z]{3}/i.test(h1)) return true;
+  const letters = h1.replace(/[^a-z]/gi, "").length;
+  const digits = h1.replace(/\D/g, "").length;
+  if (digits >= 7 && digits >= letters / 2) return true; // mostly a phone number
+  const words = service.toLowerCase().split(/\s+/).filter((w) => w.length >= 4);
+  return words.length > 0 && !words.some((w) => h1.toLowerCase().includes(w.replace(/s$/, "")));
+}
+
+const path = (url: string) => {
+  try {
+    return new URL(url).pathname || "/";
+  } catch {
+    return url;
+  }
+};
+
+/** The plan, from evidence. Most important first; never more than 7 items. */
 export function rulePlan(input: PlanInput): Draft[] {
-  const { name, category, city } = input.business;
-  const cat = category.toLowerCase();
+  const { name, city } = input.business;
+  const service = mainService(input.business.category);
+  const Service = title(service);
   const City = title(city);
+  const where = City ? ` in ${City}` : "";
   const out: Draft[] = [];
   const l = input.local;
+  const site = input.site;
 
-  const gap = l && l.leaderAvgReviews !== null && l.reviews !== null ? l.leaderAvgReviews - l.reviews : null;
-  out.push({
-    kind: "review_request",
-    title: "Text every customer a review request the day they pick up",
-    why:
-      gap !== null && gap > 0
-        ? `You have ${l!.reviews} Google reviews; the top 3 in Google Maps average ${l!.leaderAvgReviews}. Reviews are one of the biggest factors in who shows first in Maps.`
-        : "A steady flow of new reviews keeps you high in Google Maps.",
-    content: `Hi [first name], thanks for choosing ${name}. If you're happy with the work, would you mind leaving us a quick Google review? It takes a minute and really helps a local business: [your Google review link]\n\n(Find your review link in your Google Business Profile under "Ask for reviews". Send it to every customer, not just happy ones, and never offer anything in exchange. Google's rules forbid both.)`,
-    keyword: null,
-  });
-
-  out.push({
-    kind: "gbp_profile",
-    title: "Complete your Google Business Profile",
-    why:
-      l?.mapRank && l.mapRank > 3
-        ? `You're #${l.mapRank} in Google Maps. A complete profile is one of the fastest ways to move toward the top 3, where most calls happen.`
-        : "A complete profile helps Google show you for more searches in Maps.",
-    content: [
-      `Primary category: ${title(category)}`,
-      `Services to add (one per line in "Services"):`,
-      ...input.keywords.slice(0, 6).map((k) => `- ${title(k.keyword.replace(new RegExp(`\\s*${city}\\s*`, "i"), " ").trim())}`),
-      "Hours: add holiday hours so Google never shows you as 'might be closed'.",
-      "Photos: at least 10 (storefront, team, before/after of real jobs). Add 2 new photos a week.",
-      "Description (750 characters max):",
-      `${name} is a ${cat} business serving ${City} and the surrounding area. [Years in business], [certifications or insurance companies you work with], [what makes you different]. Call or book online for a free estimate.`,
-    ].join("\n"),
-    keyword: null,
-  });
-
-  const targets = input.keywords.filter((k) => k.position !== null && k.position > 3).sort((a, b) => b.monthlySearches * b.cpcUsd - a.monthlySearches * a.cpcUsd);
-  const top = targets[0] ?? input.keywords[0];
-  if (top) {
-    const kw = top.keyword;
+  // 1. The website itself.
+  if (site?.notTheirs && !site.broken) {
     out.push({
-      kind: "page_title",
-      title: `Rewrite the page title for "${kw}"`,
-      why: top.position
-        ? `You're #${top.position} on Google for "${kw}" (about ${top.monthlySearches.toLocaleString("en-US")} searches a month). A clear title that matches the search wins more clicks and helps you move up.`
-        : `About ${top.monthlySearches.toLocaleString("en-US")} people a month search "${kw}". A clear title that matches the search helps you show up.`,
-      content: `Page title (under 60 characters):\n${clip(`${title(kw)} | ${name}`, 60)}\n\nMeta description (under 155 characters):\n${clip(`Need ${cat} in ${City}? ${name} offers free estimates, works with all insurers and gets you back on the road fast. Call today.`, 155)}\n\n(Your website manager can change these in your site's SEO settings in about 10 minutes.)`,
-      keyword: kw,
+      kind: "site_fix",
+      title: `Check the website on file: ${input.business.website ?? "it"} may not be ${name}'s`,
+      why: `Neither the address nor the homepage of ${input.business.website ?? "the website on file"} mentions "${name}"${site.homepage?.title ? ` (its homepage title is "${clip(site.homepage.title, 60)}")` : ""}. It may be a directory or another business, so we haven't suggested website changes for it.`,
+      content: [
+        `1. Search "${name}" on Google Maps and open its listing. Which website does it link to?`,
+        "2. If that's a different site, update it under Team → Business details. We'll scan the right site and rebuild this plan.",
+        "3. If the shop has no website of its own, that's the first thing to fix: a one-page site with the service, city, phone and photos is enough to start.",
+      ].join("\n"),
+      keyword: null,
+    });
+  } else if (site?.broken) {
+    out.push({
+      kind: "site_fix",
+      title: site.status === 403 ? "Your website turned away our visit" : "Your website didn't load when we checked it",
+      why:
+        site.status === 403
+          ? "When we visited your homepage, the site refused the visit (error 403). Some sites block automated visitors on purpose, but the same setting can keep Google from reading your pages."
+          : `When we visited your homepage it returned ${site.status ? `an error (${site.status})` : "an error"} instead of the page. Customers who click your listing on Google may see the same, and Google can't rank a page it can't read.`,
+      content: [
+        "1. Open your website on your phone and on a computer. Does it load?",
+        "2. If it doesn't: call whoever hosts or built the site (or log in to Wix, Squarespace, GoDaddy...) and check the plan hasn't expired and the domain still points to the site.",
+        "3. If it loads for you: your site may be blocking automated visitors. Ask your web person to check that search engines aren't blocked (in Google Search Console, use \"URL inspection\" on your homepage).",
+        "",
+        "We'll check again on the next weekly scan, and this item clears once the site loads.",
+      ].join("\n"),
+      keyword: null,
+    });
+  } else if (site?.homepage) {
+    const hp = site.homepage;
+    if (weakHeading(hp.h1, service)) {
+      out.push({
+        kind: "site_fix",
+        title: `Change your homepage's main heading to "${Service}${where}"`,
+        why: hp.h1
+          ? `Your homepage's main heading is "${clip(hp.h1, 60)}". It's the first thing Google reads to understand what the page is about, and it doesn't say what you do or where.`
+          : "Your homepage has no main heading. It's the first thing Google reads to understand what the page is about.",
+        content: [
+          `New main heading (the biggest text at the top, set as "Heading 1"): ${Service}${where}`,
+          `Line under it: ${name}: [one sentence on what makes you different, e.g. years in business or warranty].`,
+          hp.h1 && /\d{3}/.test(hp.h1) ? "Keep your phone number visible as a button or in the header, just not as the heading." : "",
+          "",
+          "(In Wix, WordPress or Squarespace: click the top text, set its style to Heading 1. Your web person can do it in 10 minutes.)",
+        ]
+          .filter((x) => x !== null)
+          .join("\n")
+          .replace(/\n\n\n/g, "\n\n"),
+        keyword: input.mainSearch,
+      });
+    }
+    const t = hp.title?.toLowerCase() ?? "";
+    const serviceWords = service.split(/\s+/).filter((w) => w.length >= 4);
+    const titleMissing = !hp.title || !serviceWords.some((w) => t.includes(w.replace(/s$/, ""))) || (city && !t.includes(city.toLowerCase()));
+    if (titleMissing) {
+      out.push({
+        kind: "page_title",
+        title: "Put your service and city in your homepage title",
+        why: hp.title
+          ? `Your homepage title is "${clip(hp.title, 70)}". It's the blue headline people see on Google, and it should say what you do${city ? ` and where (${City})` : ""}.`
+          : "Your homepage has no title, so Google writes its own headline for you.",
+        content: `Homepage title (under 60 characters):\n${clip(`${Service}${where} | ${name}`, 60)}\n\nDescription (under 155 characters):\n${clip(`${Service}${where} from ${name}. [What makes you different]. Call or book a free estimate.`, 155)}\n\n(Your website manager can change these in your site's SEO settings in about 10 minutes.)`,
+        keyword: input.mainSearch,
+      });
+    }
+    if (site.missingDescription.length >= 2) {
+      out.push({
+        kind: "site_fix",
+        title: `Add descriptions to ${site.missingDescription.length} pages`,
+        why: `${site.missingDescription.length} of the pages we checked have no description, so Google shows a random snippet of text under your link instead of a reason to click.`,
+        content: [
+          "Write one or two sentences (under 155 characters) for each page, saying what it offers and ending with a reason to call:",
+          ...site.missingDescription.slice(0, 8).map((u) => `- ${path(u)}`),
+          "",
+          `Example: "${clip(`${Service}${where}. [Warranty / insurers you work with / turnaround]. Free estimates, call today.`, 155)}"`,
+        ].join("\n"),
+        keyword: null,
+      });
+    }
+  }
+
+  // 2. Google Maps: only when the numbers say it's a problem.
+  if (l && input.mainSearch) {
+    if (l.mapRank === null) {
+      out.push({
+        kind: "gbp_profile",
+        title: `Get into Google Maps for "${input.mainSearch}"`,
+        why: `When we searched "${input.mainSearch}" in Google Maps, you weren't in the first 20 results. Most calls for local services come from the top 3.`,
+        content: [
+          "1. Search your business name on Google Maps. If it isn't there, create your profile at business.google.com and verify it.",
+          `2. Primary category: the one closest to "${Service}" (e.g. "Auto body shop" for collision repair).`,
+          `3. Address: make sure it's in ${City || "your area"} and matches your website exactly.`,
+          "4. Website: link your profile to your homepage.",
+          `5. Services: list each service you offer, one per line.`,
+        ].join("\n"),
+        keyword: input.mainSearch,
+      });
+    } else if (l.mapRank > 3) {
+      out.push({
+        kind: "gbp_profile",
+        title: `Move from #${l.mapRank} toward the top 3 in Google Maps`,
+        why: `You're #${l.mapRank} in Google Maps for "${input.mainSearch}". Most calls go to the top 3. Your profile's category, services and photos are the levers you control today.`,
+        content: [
+          `Primary category: the one closest to "${Service}".`,
+          "Services (one per line, in \"Services\"):",
+          ...input.keywords.slice(0, 5).map((k) => `- ${title(k.keyword.replace(city ? new RegExp(`\\s*${escapeRe(city)}\\s*`, "i") : /$^/, " ").trim())}`),
+          "Photos: add 2 a week of real jobs (before and after).",
+          "Hours: add holiday hours so Google never shows you as \"might be closed\".",
+        ].join("\n"),
+        keyword: input.mainSearch,
+      });
+    }
+  }
+
+  // 3. Reviews and rating, against the shops above you.
+  if (l && l.reviews !== null && l.leaderAvgReviews !== null && l.reviews < l.leaderAvgReviews) {
+    const gap = l.leaderAvgReviews - l.reviews;
+    const perWeek = Math.max(1, Math.ceil(gap / 26));
+    out.push({
+      kind: "review_request",
+      title: `Ask every customer for a review (about ${perWeek} a week)`,
+      why: `You have ${n(l.reviews)} Google reviews; the top 3 shops in Maps average ${n(l.leaderAvgReviews)}. About ${perWeek} new review${perWeek === 1 ? "" : "s"} a week closes that gap in six months.`,
+      content: `Hi [first name], thanks for choosing ${name}. If you're happy with the work, would you mind leaving us a quick Google review? It takes a minute and really helps: [your Google review link]\n\n(Find your review link in your Google Business Profile under "Ask for reviews". Send it to every customer, not just happy ones, and never offer anything in exchange. Google's rules forbid both.)`,
+      keyword: null,
+    });
+  }
+  if (l && l.rating !== null && l.leaderAvgRating !== null && l.rating <= l.leaderAvgRating - 0.2) {
+    out.push({
+      kind: "review_reply",
+      title: `Lift your rating from ${l.rating}★ toward ${l.leaderAvgRating}★`,
+      why: `Your Google rating is ${l.rating}★; the top 3 shops in Maps average ${l.leaderAvgRating}★.${l.reviews !== null && l.leaderAvgReviews !== null && l.reviews >= l.leaderAvgReviews ? ` You already have more reviews than them (${n(l.reviews)} vs ${n(l.leaderAvgReviews)}), so the rating is the gap, not the count.` : ""} People comparing shops look at the stars first.`,
+      content: [
+        "1. This week, read your 1–3★ reviews from the last year and note what they have in common (delays, communication, price surprises). Fix that first: it's what's costing you stars.",
+        "2. Reply to every 1–3★ review, calmly and without arguing:",
+        `   "Hi [name], thank you for telling us, and I'm sorry we let you down on [the issue]. I'd like to make it right. Please call me at [phone] and ask for [owner's name]. – [owner's name], ${name}"`,
+        "3. Ask every customer for a review when they pick up. More recent reviews from normal jobs is what moves the average.",
+      ].join("\n"),
+      keyword: null,
     });
   }
 
-  const pageKw = targets.find((k) => k !== top && k.keyword.includes(" ")) ?? targets[1];
+  // 4. Searches you're missing (already filtered to ones your customers type).
+  const targets = input.keywords.filter((k) => k.position !== null && k.position > 3).sort((a, b) => b.monthlySearches * b.cpcUsd - a.monthlySearches * a.cpcUsd);
+  const missing = input.keywords.filter((k) => k.position === null).sort((a, b) => b.monthlySearches * b.cpcUsd - a.monthlySearches * a.cpcUsd);
+  const pageKw = targets[0] ?? missing[0];
   if (pageKw) {
     const kw = pageKw.keyword;
+    // "auto body shop near me" -> a page about "Auto Body Shop in Brampton": nobody titles a page "near me".
+    const topic = kw.replace(/\bnear me\b/g, " ").replace(city ? new RegExp(`\\b${escapeRe(city)}\\b`, "i") : /$^/, " ").replace(/\s+/g, " ").trim() || service;
+    const Page = `${title(topic)}${where}`;
     out.push({
       kind: "new_page",
-      title: `Add a dedicated page for "${kw}"`,
-      why: `About ${pageKw.monthlySearches.toLocaleString("en-US")} searches a month${pageKw.position ? `, and you're only #${pageKw.position}` : ""}. A page built for exactly this search is the most reliable way onto page 1.`,
+      title: `Add a "${Page}" page`,
+      why: `About ${n(pageKw.monthlySearches)} searches a month for "${kw}"${pageKw.position ? `, and you're #${pageKw.position}` : " and you don't show up"}. A page built for exactly this is the most reliable way onto page 1.`,
       content: [
-        `Page address: /${kw.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
-        `Main heading: ${title(kw)}`,
+        `Page address: /${Page.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`,
+        `Page title (under 60 characters): ${clip(`${Page} | ${name}`, 60)}`,
+        `Main heading: ${Page}`,
         "",
         "Sections:",
-        `1. What we do: 2–3 sentences on ${kw} at ${name}, in plain words.`,
-        "2. Photos of 3 real jobs (before and after), with one line each.",
-        "3. How it works: estimate → insurance → repair → pick-up, with typical timing.",
-        "4. Why us: certifications, warranty, years in business, insurers you work with.",
-        "5. Reviews: 2–3 short quotes from real Google reviews (with the customer's first name).",
-        `6. FAQ: "How long does ${kw} take?", "Do you work with my insurance?", "Do I need an appointment?"`,
+        `1. What we do: 2–3 sentences on ${topic} at ${name}, in plain words.`,
+        "2. Photos of 3 real jobs, with one line each.",
+        "3. How it works, with typical timing.",
+        "4. Why us: [certifications, warranty, years in business].",
+        "5. 2–3 short quotes from real Google reviews (with the customer's first name).",
+        `6. Questions people ask before buying: "How long does it take?", "How much does it cost?", "Do I need an appointment?"`,
         "7. Call button and quote form at the top and bottom.",
       ].join("\n"),
       keyword: kw,
     });
   }
 
-  out.push({
-    kind: "gbp_post",
-    title: "Post an update to your Google Business Profile this week",
-    why: "Weekly posts keep your profile active and give searchers a reason to call you over the next listing.",
-    content: `Before/after of the week 🚗 This [car] came in after a [rear-end collision]. ${name} handled the insurance claim and had it back to the owner in [X] days. Need ${cat} in ${City}? Call us or book a free estimate.\n\n(Add 1–2 photos and the "Call" button. Repeat weekly with a different job.)`,
-    keyword: null,
-  });
-
-  out.push({
-    kind: "review_reply",
-    title: "Reply to every review, including old ones",
-    why: "Replies show Google and customers you're active, and a calm reply to a bad review often wins the next customer.",
-    content: `Positive review:\nThank you, [name]! We're glad your [car] is back to looking like new. We appreciate you choosing ${name}, and we're here if you ever need us again.\n\nNegative review:\nHi [name], thank you for the feedback, and I'm sorry we fell short. I'd like to make this right. Please call me directly at [phone] and ask for [owner's name]. – [owner's name], ${name}`,
-    keyword: null,
-  });
-
-  return out;
-}
-
-const draftSchema = z.object({
-  kind: z.enum(KINDS),
-  title: z.string().trim().min(5).max(90),
-  why: z.string().trim().min(10).max(300),
-  content: z.string().trim().min(20).max(2500),
-  keyword: z.string().trim().max(80).nullable().optional(),
-});
-const draftsSchema = z.array(draftSchema).min(4).max(8);
-
-const SYSTEM = `You write a short action plan of concrete, ready-to-use changes for the owner of a small local business, to win more customers from Google searches and Google Maps.
-
-Rules:
-- Return 5 to 7 items as JSON matching the schema. Each item has a kind, a short title (what to do), a "why" (one or two sentences using only the numbers provided), and "content": the actual text to paste or the exact steps, written for this business.
-- Kinds: review_request (message asking customers for a Google review), review_reply (reply templates), gbp_profile (Google Business Profile fields), gbp_post (a profile post), page_title (page title + meta description for a keyword), new_page (outline of a page for a keyword).
-- For page_title and new_page, set "keyword" to one of the provided keywords exactly.
-- Use only the numbers in "data". Never invent statistics, prices, years, certifications or claims. Use [square brackets] for details the owner must fill in.
-- Never name or mention any other business. No links, no URLs, no HTML or markdown.
-- Review requests must follow Google's rules: ask every customer, never offer anything in exchange, never ask only happy customers.
-- Plain English, friendly, no hype.`;
-
-const RESPONSE_SCHEMA = {
-  type: "ARRAY",
-  minItems: 4,
-  maxItems: 8,
-  items: {
-    type: "OBJECT",
-    properties: {
-      kind: { type: "STRING", enum: [...KINDS] },
-      title: { type: "STRING" },
-      why: { type: "STRING" },
-      content: { type: "STRING" },
-      keyword: { type: "STRING", nullable: true },
-    },
-    required: ["kind", "title", "why", "content"],
-  },
-};
-
-/** Same safety rules as findings: no links, markup, injected instructions or other businesses' names. */
-export function draftViolatesRules(items: Draft[], otherBusinesses: string[]): boolean {
-  const names = otherBusinesses.map((n) => n.toLowerCase().replace(/\(fictional\)/, "").trim()).filter((n) => n.length >= 4);
-  return items.some((i) => {
-    const text = `${i.title} ${i.why} ${i.content}`.toLowerCase();
-    return (
-      /https?:|www\.|<[a-z/]|\]\(/.test(text) ||
-      /ignore (all |the )?(previous|prior|above)|system prompt|as an ai/.test(text) ||
-      names.some((n) => text.includes(n))
-    );
-  });
-}
-
-export async function aiPlan(t: GeminiTransport, input: PlanInput, otherBusinesses: string[]): Promise<Draft[] | null> {
-  const user = JSON.stringify({ data: input });
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const text = await generate(t, { system: SYSTEM, user, responseSchema: RESPONSE_SCHEMA, maxOutputTokens: 3000 });
-      const parsed = draftsSchema.safeParse(JSON.parse(text));
-      if (!parsed.success) continue;
-      const items = parsed.data.map((d) => ({ ...d, keyword: d.keyword ?? null }));
-      // Keywords must be ones we have data for; otherwise drop the keyword.
-      const known = new Set(input.keywords.map((k) => k.keyword.toLowerCase()));
-      for (const i of items) if (i.keyword && !known.has(i.keyword.toLowerCase())) i.keyword = null;
-      if (!draftViolatesRules(items, otherBusinesses)) return items;
-    } catch {
-      // retry, then fall back to templates
-    }
+  // 5. Only when there's little else to do: keep the profile active.
+  if (out.length < 3 && l) {
+    out.push({
+      kind: "gbp_post",
+      title: "Post one real job to your Google Business Profile each week",
+      why: l.mapRank !== null && l.mapRank <= 3
+        ? `You're already #${l.mapRank} in Google Maps. A weekly post keeps your profile active and gives searchers a reason to pick you over the next listing.`
+        : "A weekly post keeps your profile active and gives searchers a reason to pick you over the next listing.",
+      content: `This week's job: [what came in] → [what we did], done in [X] days. Need ${service}${where}? Call us or book a free estimate.\n\n(Add 1–2 photos and the "Call" button. Repeat weekly with a different job.)`,
+      keyword: null,
+    });
   }
-  return null;
+
+  return out.slice(0, 7);
 }
 
 /** Everything the plan is based on, read under the org's row-level security. */
-export async function loadPlanInput(tx: Tx, orgId: string): Promise<{ input: PlanInput; otherBusinesses: string[] } | null> {
+export async function loadPlanInput(tx: Tx, orgId: string): Promise<{ input: PlanInput } | null> {
   const [org] = await tx.select().from(organizations).where(eq(organizations.id, orgId));
   if (!org) return null;
   const [latest] = await tx
@@ -223,28 +308,44 @@ export async function loadPlanInput(tx: Tx, orgId: string): Promise<{ input: Pla
     ? await tx.select().from(rankChecks).where(eq(rankChecks.trackedSearchId, main.id)).orderBy(desc(rankChecks.day)).limit(1)
     : [];
 
+  const city = cityFrom(org.serviceArea ?? "");
+  const profile = { category: org.category ?? "", city, brand: org.name };
+  const fits = (k: string, alreadyRanks: boolean) => !org.category || judgeSearch(k, profile, { alreadyRanks }).topic !== null;
+
   const keywords = new Map<string, PlanInput["keywords"][number]>();
-  for (const k of a?.rescueTargets ?? []) keywords.set(k.keyword, { keyword: k.keyword, monthlySearches: k.monthlySearches, cpcUsd: k.cpcUsd, position: k.position });
-  for (const k of a?.topKeywords ?? []) if (!keywords.has(k.keyword)) keywords.set(k.keyword, { keyword: k.keyword, monthlySearches: k.monthlySearches, cpcUsd: k.cpcUsd, position: null });
+  for (const k of a?.rescueTargets ?? []) if (fits(k.keyword, true)) keywords.set(k.keyword, { keyword: k.keyword, monthlySearches: k.monthlySearches, cpcUsd: k.cpcUsd, position: k.position });
+  for (const k of a?.topKeywords ?? []) if (!keywords.has(k.keyword) && fits(k.keyword, false)) keywords.set(k.keyword, { keyword: k.keyword, monthlySearches: k.monthlySearches, cpcUsd: k.cpcUsd, position: null });
+  // The weekly site check: searches the site already ranks for.
+  const snap = (await loadSnapshots(tx, orgId)).at(-1) ?? null;
+  for (const k of snap?.data.keywords ?? []) {
+    if (!keywords.has(k.keyword) && fits(k.keyword, true)) keywords.set(k.keyword, { keyword: k.keyword, monthlySearches: k.searches, cpcUsd: k.cpcUsd, position: k.position });
+  }
   if (main && check && keywords.has(main.keyword)) keywords.get(main.keyword)!.position = check.organicRank;
+
+  const pages = snap?.data.audit?.pages ?? [];
+  const home = pages.find((p) => isHomepage(p.url)) ?? pages[0] ?? null;
+  const site: SiteEvidence | null = home
+    ? {
+        broken: home.failed.includes("is_broken") || (home.status ?? 200) >= 400 || (home.title == null && home.h1 == null && home.score === null),
+        status: home.status ?? null,
+        homepage: { url: home.url, title: home.title ?? null, h1: home.h1 ?? null },
+        missingDescription: pages.filter((p) => p.failed.includes("no_description")).map((p) => p.url),
+        notTheirs: !looksLikeTheirs(org.name, org.websiteDomain, { title: home.title ?? null, h1: home.h1 ?? null }),
+      }
+    : null;
 
   return {
     input: {
-      business: {
-        name: org.name.replace(/\s*\(Demo\)$/, ""),
-        category: org.category ?? "local business",
-        city: cityFrom(org.serviceArea ?? ""),
-        website: org.websiteDomain,
-        goals: org.goals ?? [],
-      },
+      business: { name: org.name.replace(/\s*\(Demo\)$/, ""), category: org.category ?? "local business", city, website: org.websiteDomain, goals: org.goals ?? [] },
+      mainSearch: main?.keyword ?? null,
       local: check
         ? { mapRank: check.mapRank, reviews: check.reviews, rating: check.rating, leaderAvgReviews: check.leaderAvgReviews, leaderAvgRating: check.leaderAvgRating }
         : a?.local
           ? { mapRank: a.local.yourRank, reviews: a.local.you?.reviews ?? null, rating: a.local.you?.rating ?? null, leaderAvgReviews: a.local.leaderAvgReviews, leaderAvgRating: a.local.leaderAvgRating }
           : null,
-      keywords: [...keywords.values()].slice(0, 15),
+      site,
+      keywords: [...keywords.values()].sort((x, y) => y.monthlySearches * y.cpcUsd - x.monthlySearches * x.cpcUsd).slice(0, 15),
     },
-    otherBusinesses: [...(a?.local?.leaders.map((l) => l.name) ?? []), ...(a?.competitors.map((c) => c.domain) ?? [])],
   };
 }
 
@@ -256,13 +357,11 @@ export async function loadPlanInput(tx: Tx, orgId: string): Promise<{ input: Pla
 export async function refreshPlan(
   orgId: string,
   run: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>,
-  gemini: GeminiTransport | null,
-): Promise<{ count: number; source: "ai" | "rules" }> {
+): Promise<{ count: number; source: "rules" }> {
   const loaded = await run((tx) => loadPlanInput(tx, orgId));
   if (!loaded) return { count: 0, source: "rules" };
-  const ai = gemini ? await aiPlan(gemini, loaded.input, loaded.otherBusinesses) : null;
-  const drafts = ai ?? rulePlan(loaded.input);
-  const source: "ai" | "rules" = ai ? "ai" : "rules";
+  const drafts = rulePlan(loaded.input);
+  const source = "rules" as const;
 
   return run(async (tx) => {
     const kept = await tx
@@ -286,7 +385,7 @@ export type ActionItem = typeof actionItems.$inferSelect;
 /** Open items first, highest estimated value first; then the rest by date. */
 export async function listActions(tx: Tx, orgId: string): Promise<{ open: ActionItem[]; done: ActionItem[] }> {
   const rows = await tx.select().from(actionItems).where(eq(actionItems.orgId, orgId)).orderBy(desc(actionItems.createdAt));
-  const order: ActionKind[] = ["review_request", "gbp_profile", "page_title", "new_page", "gbp_post", "review_reply"];
+  const order: ActionKind[] = ["site_fix", "review_request", "review_reply", "gbp_profile", "page_title", "new_page", "gbp_post"];
   const open = rows
     .filter((r) => r.status === "open")
     .sort((a, b) => (b.valueUsdMonth ?? -1) - (a.valueUsdMonth ?? -1) || order.indexOf(a.kind) - order.indexOf(b.kind));

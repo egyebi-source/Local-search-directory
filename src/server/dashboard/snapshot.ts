@@ -43,6 +43,8 @@ export const snapshotSchema = z.object({
             failed: z.array(z.string().max(60)).max(40),
             title: z.string().max(300).nullable().optional(),
             h1: z.string().max(300).nullable().optional(),
+            // HTTP status we got back (403 = blocked us, 404 = not found...).
+            status: z.number().int().min(0).max(999).nullable().optional(),
           }),
         )
         .max(10),
@@ -118,6 +120,8 @@ export async function runWeeklySnapshots(
   deps: { dataforseo: DataForSeoTransport; dataSource: "sandbox" | "live" },
   budgetMs = 20_000,
   maxOrgs = 20,
+  // Called after each new snapshot (the action plan is rebuilt from it).
+  onSnapshot: (orgId: string) => Promise<unknown> = async () => {},
 ) {
   const started = Date.now();
   const due = await getDb().execute<{ id: string }>(sql`SELECT orgs_due_for_seo_snapshot(${maxOrgs}) AS id`);
@@ -125,7 +129,10 @@ export async function runWeeklySnapshots(
   for (const { id } of due.rows) {
     if (Date.now() - started > budgetMs) break;
     try {
-      if (await snapshotOrg(id, (fn) => withSystemOrg(id, fn), deps)) done++;
+      if (await snapshotOrg(id, (fn) => withSystemOrg(id, fn), deps)) {
+        done++;
+        await onSnapshot(id);
+      }
     } catch (err) {
       if (err instanceof SpendCapReachedError) break;
       console.warn("[snapshot] failed:", err instanceof Error ? err.name : "unknown");

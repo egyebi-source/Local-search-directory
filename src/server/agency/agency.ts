@@ -1,4 +1,5 @@
 import "server-only";
+import { mainService } from "@/server/keywords/relevance";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import { z } from "zod";
@@ -10,7 +11,9 @@ import { NotMemberError, withOrg, withUser, type OrgContext, type Tx } from "@/s
 import { loadPlan } from "@/server/keywords/plan";
 import { audit } from "@/server/org/audit";
 import { sha256Hex } from "@/server/security/hash";
-import { addTrackedSearch, keywordSchema } from "@/server/tracking/checks";
+import { snapshotOrg } from "@/server/dashboard/snapshot";
+import type { DataForSeoTransport } from "@/server/dataforseo/client";
+import { addTrackedSearch, keywordSchema, runChecksForOrg } from "@/server/tracking/checks";
 import { loadProgress } from "@/server/tracking/progress";
 
 // Agencies and networks (PRD Module 11). One login over many businesses.
@@ -74,7 +77,7 @@ export type NewLocation = z.infer<typeof newLocationSchema>;
 /** The search to track from day one: "<service> <city>", e.g. "collision repair ottawa". */
 export function mainSearchFor(loc: Pick<NewLocation, "category" | "serviceArea">): string | null {
   const city = loc.serviceArea.split(",")[0];
-  const parsed = keywordSchema.safeParse(`${loc.category} ${city}`);
+  const parsed = keywordSchema.safeParse(`${mainService(loc.category)} ${city}`.toLowerCase());
   return parsed.success ? parsed.data : null;
 }
 
@@ -90,9 +93,23 @@ export async function addLocation(userId: string, agencyId: string, input: NewLo
   });
   const keyword = mainSearchFor(loc);
   if (keyword) await withOrg(userId, orgId, (tx) => addTrackedSearch(tx, orgId, keyword, loc.country as Country));
-  // A first action plan from templates (no AI cost).
-  await refreshPlan(orgId, (fn) => withOrg(userId, orgId, fn), null);
   return orgId;
+}
+
+/**
+ * A new location's first look (run after the page responds): today's Google
+ * Maps and ranking check, a site scan, then an action plan built from them.
+ * Each step is optional; the plan uses whatever came back.
+ */
+export async function prepareLocation(
+  userId: string,
+  orgId: string,
+  deps: { dataforseo: DataForSeoTransport; dataSource: "sandbox" | "live" },
+): Promise<void> {
+  const run = <T>(fn: (tx: Tx) => Promise<T>) => withOrg(userId, orgId, fn);
+  await runChecksForOrg(orgId, run, deps, "manual").catch((err) => console.warn("[agency] first check failed:", err instanceof Error ? err.name : "unknown"));
+  await snapshotOrg(orgId, run, deps).catch((err) => console.warn("[agency] first scan failed:", err instanceof Error ? err.name : "unknown"));
+  await refreshPlan(orgId, run);
 }
 
 // --- Connect codes: the owner's consent to be managed ------------------------

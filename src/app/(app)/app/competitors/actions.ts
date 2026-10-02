@@ -15,8 +15,9 @@ import {
   removeCompetitor,
   saveReport,
 } from "@/server/competitors/competitors";
+import { httpGemini } from "@/server/ai/gemini";
 import { httpTransport } from "@/server/dataforseo/client";
-import { primaryKeyword } from "@/server/assessment/result";
+import { cityFrom, primaryKeyword } from "@/server/assessment/result";
 import { organizations, trackedSearches, type Country } from "@/server/db/schema";
 import { NATIONWIDE } from "@/server/onboarding/answers";
 import { serverEnv } from "@/server/env";
@@ -51,7 +52,7 @@ export async function removeCompetitorAction(form: FormData): Promise<void> {
 export async function runCheckAction(): Promise<CompetitorState> {
   const setup = await withCurrentOrg(async (tx, ctx) => {
     const [org] = await tx
-      .select({ domain: organizations.websiteDomain, country: organizations.country, category: organizations.category, serviceArea: organizations.serviceArea })
+      .select({ name: organizations.name, domain: organizations.websiteDomain, country: organizations.country, category: organizations.category, serviceArea: organizations.serviceArea })
       .from(organizations)
       .where(eq(organizations.id, ctx.orgId));
     // A local business's real competitors are the ones above it in Google Maps
@@ -72,16 +73,21 @@ export async function runCheckAction(): Promise<CompetitorState> {
       domain: org?.domain ?? null,
       country: (org?.country ?? "CA") as Country,
       mapsSearch,
+      profile: org?.category ? { category: org.category, city: org.serviceArea === NATIONWIDE ? "" : cityFrom(org.serviceArea ?? ""), brand: org.name } : null,
       rivals: await listCompetitors(tx, ctx.orgId),
     };
   });
-  if (!setup.domain) return { error: "Add your website first (Team → business details)." };
+  if (!setup.domain) return { error: "Add your website first (Team → Business details)." };
   // Each check costs a few cents of search data per site.
   if (!(await consumeRateLimit({ name: "competitor-check:org", limit: await dailyCheckLimit(setup.userId, 3), windowSeconds: 24 * 60 * 60 }, setup.orgId))) {
     return { error: "You've used today's checks for this business. Search data changes slowly; try again tomorrow." };
   }
   try {
-    const report = await buildReport(httpTransport, setup.domain, setup.rivals.map((r) => r.domain), setup.country, setup.mapsSearch);
+    const report = await buildReport(httpTransport, setup.domain, setup.rivals.map((r) => r.domain), setup.country, {
+      mapsSearch: setup.mapsSearch,
+      profile: setup.profile,
+      gemini: serverEnv().GEMINI_API_KEY ? httpGemini : null,
+    });
     await withCurrentOrg((tx, ctx) => saveReport(tx, ctx.orgId, serverEnv().DATAFORSEO_MODE, report));
   } catch (err) {
     if (err instanceof SpendCapReachedError) return { error: "Today's data budget is used up. Try again tomorrow." };

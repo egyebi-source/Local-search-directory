@@ -141,6 +141,13 @@
       "when": 1790923444589,
       "tag": "0019_competitors",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790950283035,
+      "tag": "0020_site_fix",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { Insight } from "@/server/ai/insights";
 import type { Country } from "@/server/db/schema";
 import type { MapListing } from "@/server/dataforseo/market";
+import { industriesFor, mainService } from "@/server/keywords/relevance";
 
 // Shape of a stored assessment, and the reduced "teaser" shown before
 // sign-up. Pure functions only (unit-tested without a database).
@@ -164,7 +165,7 @@ export function cityFrom(serviceArea: string): string {
 
 /** "collision repair ottawa" for a local business; just "collision repair" nationwide. */
 export function primaryKeyword(category: string, serviceArea: string, reach: "local" | "national" = "local"): string {
-  const service = category.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60);
+  const service = mainService(category).replace(/\s+/g, " ").slice(0, 60);
   return reach === "national" ? service : `${service} ${cityFrom(serviceArea)}`.trim();
 }
 
@@ -179,6 +180,8 @@ export function keywordCandidates(category: string, serviceArea: string, reach: 
   const words = category.trim().toLowerCase().replace(/[^\p{L}\p{N}&' -]/gu, " ").split(/\s+/).filter(Boolean).slice(0, 10);
   const city = reach === "national" ? "" : cityFrom(serviceArea);
   const out: string[] = [];
+  // A trade we know: its main service, spelled right, comes first.
+  if (industriesFor(category).length) out.push(primaryKeyword(category, serviceArea, reach));
   for (let n = words.length; n >= 1; n--) {
     const head = words.slice(0, n);
     if (TRAILING.has(head[n - 1])) continue;

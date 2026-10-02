@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { httpTransport } from "@/server/dataforseo/client";
 import { serverEnv } from "@/server/env";
 import { isAuthorizedCron } from "@/server/security/cron";
+import { refreshPlan } from "@/server/actions/plan";
 import { runWeeklySnapshots } from "@/server/dashboard/snapshot";
+import { withSystemOrg } from "@/server/db/tenant";
 import { runDailyChecks } from "@/server/tracking/checks";
 import { googleConfig, httpGoogle } from "@/server/google/client";
 import { runDailyGoogleSync } from "@/server/google/sync";
@@ -21,7 +23,8 @@ export async function GET(request: Request) {
   const checks = await runDailyChecks(deps, 25_000);
   const cfg = googleConfig();
   const google = cfg ? await runDailyGoogleSync({ google: httpGoogle, config: cfg }, 15_000) : "not configured";
-  const snapshots = await runWeeklySnapshots(deps, 15_000);
+  // A new weekly snapshot means new evidence: rebuild that business's action plan (no paid calls).
+  const snapshots = await runWeeklySnapshots(deps, 15_000, 20, (orgId) => refreshPlan(orgId, (fn) => withSystemOrg(orgId, fn)));
   const summary = { checks, google, snapshots };
   console.info("[cron] rank-checks", summary);
   return NextResponse.json(summary, { headers: { "Cache-Control": "no-store" } });

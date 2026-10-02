@@ -12,6 +12,7 @@ const KIND: Record<ActionKind, { label: string; time: string }> = {
   gbp_post: { label: "Google Business Profile", time: "5 min a week" },
   page_title: { label: "Website", time: "10 min" },
   new_page: { label: "Website", time: "2–3 hours" },
+  site_fix: { label: "Website", time: "10–30 min" },
 };
 
 function Card({ item }: { item: ActionItem }) {
@@ -81,7 +82,11 @@ export default async function ActionPlanPage() {
           ))}
         </ol>
       ) : (
-        <p className="text-slate-600">{done.length ? "You've worked through your plan. Nice work." : "No plan yet."}</p>
+        <p className="max-w-2xl text-slate-600">
+          {done.length
+            ? "You've worked through your plan. Nice work."
+            : "Nothing to suggest yet. Every item here comes from a real number about your business (your Google Maps spot, reviews, website), and we don't have those yet. They arrive with your first Google check and site scan; then build your plan."}
+        </p>
       )}
 
       <RefreshPlanForm label={open.length ? "Get fresh suggestions" : "Build my plan"} />

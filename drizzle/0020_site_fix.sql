@@ -1,0 +1,1 @@
+ALTER TYPE "public"."action_kind" ADD VALUE 'site_fix';

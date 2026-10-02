@@ -4,9 +4,12 @@ import { z } from "zod";
 import { normalizeDomain } from "@/lib/domain";
 import type { DataForSeoTransport } from "@/server/dataforseo/client";
 import { isDirectory } from "@/server/assessment/result";
-import { domainCompetitors, domainOverview, mapsRanking, siteKeywords, type DomainOverview, type MapListing, type SiteKeyword } from "@/server/dataforseo/market";
+import { domainCompetitors, domainOverview, mapsRanking, siteKeywords, type DomainCompetitor, type DomainOverview, type MapListing, type SiteKeyword } from "@/server/dataforseo/market";
 import { actionItems, competitorReports, competitors, organizations, type Country } from "@/server/db/schema";
 import type { Tx } from "@/server/db/tenant";
+import type { GeminiTransport } from "@/server/ai/gemini";
+import { aiKeepSearches } from "@/server/keywords/ai-filter";
+import { judgeSearch, tradeLabel, type BusinessProfile } from "@/server/keywords/relevance";
 
 // Competitors (who else wins the searches, and with which words). Each
 // check reads public search data for the business and up to 5 rivals:
@@ -86,7 +89,10 @@ export function isBrandSearch(keyword: string, domain: string): boolean {
   return brand.length >= 5 && keyword.replace(/[^a-z0-9]/g, "").includes(brand);
 }
 
-function summarize(domain: string, overview: DomainOverview | null, keywords: SiteKeyword[] | null): SiteSummary {
+type Fits = (keyword: string) => boolean;
+const anyFits: Fits = () => true;
+
+function summarize(domain: string, overview: DomainOverview | null, keywords: SiteKeyword[] | null, fits: Fits = anyFits): SiteSummary {
   return {
     domain,
     trafficEst: overview?.trafficEst ?? null,
@@ -95,7 +101,7 @@ function summarize(domain: string, overview: DomainOverview | null, keywords: Si
     paidKeywords: overview?.paidKeywords ?? null,
     trafficValueUsd: overview?.trafficValueUsd ?? null,
     topSearches: (keywords ?? [])
-      .filter((k) => !isBrandSearch(k.keyword, domain))
+      .filter((k) => !isBrandSearch(k.keyword, domain) && fits(k.keyword))
       .slice(0, 15)
       .map((k) => ({ keyword: k.keyword, position: k.position, searches: k.searches, cpcUsd: k.cpcUsd, trafficEst: k.trafficEst })),
     ok: overview !== null || keywords !== null,
@@ -106,13 +112,20 @@ function summarize(domain: string, overview: DomainOverview | null, keywords: Si
  * Searches a rival is on page 1 for and you're not (or are below), most
  * valuable first. Each rival's own brand name, and the business's, are left out.
  */
-export function findGap(yourDomain: string, yours: SiteKeyword[], rivals: { domain: string; keywords: SiteKeyword[] }[], limit = 30): GapRow[] {
+export function findGap(
+  yourDomain: string,
+  yours: SiteKeyword[],
+  rivals: { domain: string; keywords: SiteKeyword[] }[],
+  limit = 30,
+  fits: Fits = anyFits,
+): GapRow[] {
   const mine = new Map(yours.map((k) => [k.keyword, k.position]));
   const best = new Map<string, GapRow>();
   for (const r of rivals) {
     for (const k of r.keywords) {
       if (k.position > 10 || k.searches < 10) continue;
       if (isBrandSearch(k.keyword, r.domain) || isBrandSearch(k.keyword, yourDomain)) continue;
+      if (!fits(k.keyword)) continue; // only searches a customer of yours would type
       const you = mine.get(k.keyword) ?? null;
       if (you !== null && you <= k.position) continue; // you already beat or match them
       if (you !== null && you <= 3) continue;
@@ -170,9 +183,18 @@ export async function buildReport(
   yourDomain: string,
   rivalDomains: string[],
   country: Country,
-  // The business's main local search ("collision repair ottawa"); none for nationwide businesses.
-  mapsSearch: string | null = null,
+  opts: {
+    // The business's main local search ("collision repair ottawa"); none for nationwide businesses.
+    mapsSearch?: string | null;
+    // What the business does: searches outside it are left out of every list.
+    profile?: BusinessProfile | null;
+    // Second opinion on the searches we show (can only remove them).
+    gemini?: GeminiTransport | null;
+  } = {},
 ): Promise<CompetitorReport> {
+  const mapsSearch = opts.mapsSearch ?? null;
+  const profile = opts.profile ?? null;
+  const fits: Fits = profile ? (k) => judgeSearch(k, profile).topic !== null : anyFits;
   const [yourOverview, yourKeywords, suggested, mapListings, ...rivalData] = await Promise.all([
     settle(domainOverview(t, yourDomain, country)),
     settle(siteKeywords(t, yourDomain, country, 300)),
@@ -184,16 +206,47 @@ export async function buildReport(
     const [overview, keywords] = rivalData[i] as [DomainOverview | null, SiteKeyword[] | null];
     return { domain: d, overview, keywords };
   });
-  const maps = mapsSearch && mapListings ? { keyword: mapsSearch, listings: mapListings as MapListing[] } : null;
+  const report = assembleReport(
+    yourDomain,
+    rivalDomains,
+    mapsSearch,
+    fits,
+    yourOverview as DomainOverview | null,
+    yourKeywords as SiteKeyword[] | null,
+    suggested as DomainCompetitor[] | null,
+    mapListings as MapListing[] | null,
+    rivals,
+  );
+  if (!profile || !opts.gemini) return report;
+  const shown = [...new Set([...report.gap.map((g) => g.keyword), ...[report.you, ...report.rivals].flatMap((s) => s.topSearches.map((k) => k.keyword))])];
+  const keep = await aiKeepSearches(opts.gemini, { trade: tradeLabel(profile.category), area: profile.city }, shown);
+  const trim = (s: SiteSummary): SiteSummary => ({ ...s, topSearches: s.topSearches.filter((k) => keep.has(k.keyword)) });
+  return { ...report, you: trim(report.you), rivals: report.rivals.map(trim), gap: report.gap.filter((g) => keep.has(g.keyword)) };
+}
+
+function assembleReport(
+  yourDomain: string,
+  rivalDomains: string[],
+  mapsSearch: string | null,
+  fits: Fits,
+  yourOverview: DomainOverview | null,
+  yourKeywords: SiteKeyword[] | null,
+  suggested: DomainCompetitor[] | null,
+  mapListings: MapListing[] | null,
+  rivals: { domain: string; overview: DomainOverview | null; keywords: SiteKeyword[] | null }[],
+): CompetitorReport {
+  const maps = mapsSearch && mapListings ? { keyword: mapsSearch, listings: mapListings } : null;
   return {
-    you: summarize(yourDomain, yourOverview as DomainOverview | null, yourKeywords as SiteKeyword[] | null),
-    rivals: rivals.map((r) => summarize(r.domain, r.overview, r.keywords)),
+    you: summarize(yourDomain, yourOverview, yourKeywords, fits),
+    rivals: rivals.map((r) => summarize(r.domain, r.overview, r.keywords, fits)),
     gap: findGap(
       yourDomain,
-      (yourKeywords as SiteKeyword[] | null) ?? [],
+      yourKeywords ?? [],
       rivals.map((r) => ({ domain: r.domain, keywords: r.keywords ?? [] })),
+      30,
+      fits,
     ),
-    suggestions: pickSuggestions(yourDomain, rivalDomains, maps, (suggested as Awaited<ReturnType<typeof domainCompetitors>> | null) ?? []),
+    suggestions: pickSuggestions(yourDomain, rivalDomains, maps, suggested ?? []),
   };
 }
 

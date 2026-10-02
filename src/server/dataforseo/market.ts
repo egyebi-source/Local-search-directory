@@ -159,6 +159,39 @@ export async function mapsRanking(t: DataForSeoTransport, keyword: string, count
     .sort((a, b) => a.rank - b.rank);
 }
 
+export type BusinessListing = {
+  name: string;
+  address: string | null;
+  domain: string | null;
+  category: string | null;
+  rating: number | null;
+  reviews: number | null;
+};
+
+const listingItem = mapsItem.extend({ address: str });
+
+/** Look a business up on Google Maps by name and city, so its owner can confirm it's the right one. */
+export async function findBusiness(t: DataForSeoTransport, name: string, city: string, country: Country): Promise<BusinessListing[]> {
+  const raw = await liveTask(t, "serp/google/maps/live/advanced", {
+    keyword: `${name} ${city}`.slice(0, 200),
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+    depth: 10,
+  });
+  return parseItems(raw, listingItem)
+    .filter((i) => i.type === "maps_search")
+    .sort((a, b) => a.rank_group - b.rank_group)
+    .slice(0, 5)
+    .map((i) => ({
+      name: i.title.slice(0, 120),
+      address: i.address ? i.address.slice(0, 200) : null,
+      domain: i.domain ? i.domain.toLowerCase().replace(/^www\./, "") : null,
+      category: i.category ? i.category.slice(0, 80) : null,
+      rating: i.rating?.value ?? null,
+      reviews: i.rating?.votes_count ?? null,
+    }));
+}
+
 // --- Whole-site numbers for the SEO dashboard (weekly) ---------------------------
 
 export type DomainOverview = {
@@ -236,10 +269,11 @@ export async function siteKeywords(t: DataForSeoTransport, domain: string, count
   });
 }
 
-export type PageAudit = { url: string; score: number | null; failed: string[]; title: string | null; h1: string | null };
+export type PageAudit = { url: string; score: number | null; failed: string[]; title: string | null; h1: string | null; status: number | null };
 
 const pageItem = z.object({
   url: str,
+  status_code: num,
   onpage_score: num,
   checks: z.record(z.string(), z.boolean().nullable()).nullable().optional(),
   meta: z
@@ -271,6 +305,7 @@ export async function auditPage(t: DataForSeoTransport, url: string): Promise<Pa
     failed: BAD_CHECKS.filter((c) => checks[c] === true),
     title: item.meta?.title?.slice(0, 300) ?? null,
     h1: item.meta?.htags?.h1?.[0]?.slice(0, 300) ?? null,
+    status: item.status_code ?? null,
   };
 }
 

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { snapshotOrg } from "@/server/dashboard/snapshot";
 import { httpTransport } from "@/server/dataforseo/client";
-import { withOrg } from "@/server/db/tenant";
+import { refreshPlan } from "@/server/actions/plan";
+import { withOrg, type Tx } from "@/server/db/tenant";
 import { serverEnv } from "@/server/env";
 import { withCurrentOrg } from "@/server/org/current";
 import { dailyCheckLimit } from "@/server/agency/agency";
@@ -19,15 +20,15 @@ export async function snapshotNowAction(): Promise<SnapshotState> {
     return { error: "You've used today's dashboard refreshes. Try again tomorrow." };
   }
   try {
-    await snapshotOrg(ctx.orgId, (fn) => withOrg(ctx.userId, ctx.orgId, fn), {
-      dataforseo: httpTransport,
-      dataSource: serverEnv().DATAFORSEO_MODE,
-    });
+    const run = <T,>(fn: (tx: Tx) => Promise<T>) => withOrg(ctx.userId, ctx.orgId, fn);
+    await snapshotOrg(ctx.orgId, run, { dataforseo: httpTransport, dataSource: serverEnv().DATAFORSEO_MODE });
+    await refreshPlan(ctx.orgId, run);
   } catch (err) {
     if (err instanceof SpendCapReachedError) return { error: "Today's data budget is used up. Your dashboard will refresh tomorrow." };
     console.warn("[snapshot] manual failed:", err instanceof Error ? err.name : "unknown");
     return { error: "We couldn't reach our data provider. Please try again later." };
   }
   revalidatePath("/app");
+  revalidatePath("/app/actions");
   return {};
 }

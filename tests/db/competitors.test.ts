@@ -130,7 +130,7 @@ describe.runIf(hasDb)("competitors (database)", () => {
   });
 
   it("suggests the businesses above you in Google Maps for your main search", async () => {
-    const r = await buildReport(fakeDataForSeo().transport, "acmecollision.ca", ["rivalautobody.ca"], "CA", "collision repair ottawa");
+    const r = await buildReport(fakeDataForSeo().transport, "acmecollision.ca", ["rivalautobody.ca"], "CA", { mapsSearch: "collision repair ottawa" });
     expect(r.suggestions.map((s) => s.domain)).toEqual(["capitalcollision.ca", "fastfixcollision.com"]);
     expect(r.suggestions[0].reason).toContain('#2 in Google Maps for "collision repair ottawa"');
   });

@@ -3,12 +3,18 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { t } from "@/lib/i18n/en";
 import { signOut } from "@/server/auth";
 import { escapeHtml, sendEmail } from "@/server/email/send";
 import { organizations } from "@/server/db/schema";
-import { withOrg } from "@/server/db/tenant";
+import { withOrg, type Tx } from "@/server/db/tenant";
+import { refreshPlan } from "@/server/actions/plan";
+import { snapshotOrg } from "@/server/dashboard/snapshot";
+import { httpTransport } from "@/server/dataforseo/client";
+import { serverEnv } from "@/server/env";
+import { canEditDetails, detailsSchema, updateDetails } from "@/server/org/details";
 import { currentOrganization, requireUser, setCurrentOrgCookie, withCurrentOrg } from "@/server/org/current";
 import {
   changeRole,
@@ -154,4 +160,34 @@ export async function endAgencyAction(): Promise<void> {
   });
   revalidatePath("/app", "layout");
   redirect("/app/team");
+}
+
+/** Correct the business's name, website, main service or city, then rebuild its plan from the new site. */
+export async function updateDetailsAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const parsed = detailsSchema.safeParse({
+    name: form.get("name"),
+    website: form.get("website"),
+    category: form.get("category"),
+    serviceArea: form.get("serviceArea"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.path[0] === "website" ? "Enter the website like example.com." : "Fill in every field (2 characters or more)." };
+  }
+  const ctx = await withCurrentOrg(async (_tx, ctx) => ctx);
+  if (!canEditDetails(ctx)) return { error: t.team.ownersOnly };
+  if (!(await consumeRateLimit({ name: "details:org", limit: 10, windowSeconds: 24 * 60 * 60 }, ctx.orgId))) {
+    return { error: "Too many changes today. Try again tomorrow." };
+  }
+  const changed = await withCurrentOrg((tx, c) => updateDetails(tx, c, parsed.data));
+  if (!changed.length) return { ok: "Nothing changed." };
+  const run = <T,>(fn: (tx: Tx) => Promise<T>) => withOrg(ctx.userId, ctx.orgId, fn);
+  // A new website needs a fresh scan before the plan can say anything about it.
+  after(async () => {
+    if (changed.includes("website")) {
+      await snapshotOrg(ctx.orgId, run, { dataforseo: httpTransport, dataSource: serverEnv().DATAFORSEO_MODE }).catch(() => null);
+    }
+    await refreshPlan(ctx.orgId, run);
+  });
+  revalidatePath("/app", "layout");
+  return { ok: changed.includes("website") ? "Saved. We're scanning the new website; your action plan updates in about a minute." : "Saved. Your action plan has been updated." };
 }

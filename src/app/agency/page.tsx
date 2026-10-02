@@ -8,6 +8,9 @@ import { requireUser } from "@/server/org/current";
 import { endLocationAction, openLocationAction } from "./actions";
 import { AddLocationForm, ConnectForm, CreateAgencyForm } from "./forms";
 
+// Adding a location runs its first Google check and site scan right after the response.
+export const maxDuration = 60;
+
 export const dynamic = "force-dynamic";
 
 function statusLine(a: MyAgency): string {

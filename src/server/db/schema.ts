@@ -433,6 +433,8 @@ export const actionKind = pgEnum("action_kind", [
   "gbp_post",
   "page_title",
   "new_page",
+  // Fix something on the website itself (it doesn't load, a heading is a phone number...).
+  "site_fix",
 ]);
 export type ActionKind = (typeof actionKind.enumValues)[number];
 export const actionStatus = pgEnum("action_status", ["open", "done", "dismissed"]);

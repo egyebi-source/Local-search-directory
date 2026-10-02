@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { httpGemini } from "@/server/ai/gemini";
 import { httpTransport } from "@/server/dataforseo/client";
 import { withOrg } from "@/server/db/tenant";
 import { serverEnv } from "@/server/env";
@@ -22,6 +23,7 @@ export async function buildPlanAction(): Promise<PlanState> {
     const plan = await buildAndSavePlan(ctx.orgId, (fn) => withOrg(ctx.userId, ctx.orgId, fn), {
       dataforseo: httpTransport,
       dataSource: serverEnv().DATAFORSEO_MODE,
+      gemini: serverEnv().GEMINI_API_KEY ? httpGemini : null,
     });
     if (!plan) return { error: "Add your website and type of business first." };
   } catch (err) {

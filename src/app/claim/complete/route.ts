@@ -56,7 +56,7 @@ export async function GET() {
     }),
   );
   // A first action plan from templates (no AI cost); "Get fresh suggestions" uses AI.
-  await refreshPlan(orgId, (fn) => withOrg(userId, orgId, fn), null);
+  await refreshPlan(orgId, (fn) => withOrg(userId, orgId, fn));
   await markClaimed(token, orgId);
   jar.delete(CLAIM_COOKIE);
   await setCurrentOrgCookie(orgId);

@@ -12,7 +12,8 @@ export type AuditAction =
   | "agency.code_created"
   | "google.connected"
   | "google.properties_chosen"
-  | "google.disconnected";
+  | "google.disconnected"
+  | "business.details_changed";
 
 export async function audit(
   tx: Tx,

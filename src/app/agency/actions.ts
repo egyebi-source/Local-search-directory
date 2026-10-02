@@ -2,10 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { httpTransport } from "@/server/dataforseo/client";
+import { findBusiness, type BusinessListing } from "@/server/dataforseo/market";
+import { serverEnv } from "@/server/env";
 import { z } from "zod";
 import {
   addLocation,
   connectLocation,
+  prepareLocation,
   createAgency,
   endLocation,
   listMyAgencies,
@@ -50,6 +55,28 @@ export async function createAgencyAction(_prev: AgencyState, form: FormData): Pr
   redirect("/agency");
 }
 
+export type FindState = { error?: string; listings?: BusinessListing[]; searched?: boolean };
+
+/** Step 1 of adding a location: find the business on Google Maps so the right website and category are used. */
+export async function findListingAction(_prev: FindState, form: FormData): Promise<FindState> {
+  const user = await requireUser();
+  const agency = await myAgency(user.id, form);
+  if (!agency) return { error: "You don't have permission to do that." };
+  const parsed = z
+    .object({ name: z.string().trim().min(2).max(120), city: z.string().trim().min(2).max(120), country: z.enum(["CA", "US"]) })
+    .safeParse({ name: form.get("name"), city: form.get("serviceArea"), country: form.get("country") });
+  if (!parsed.success) return { error: "Enter the business name and city first." };
+  if (!(await consumeRateLimit({ name: "agency-find:user", limit: 60, windowSeconds: 24 * 60 * 60 }, user.id))) {
+    return { error: "That's a lot of lookups for one day. Enter the details yourself below." };
+  }
+  try {
+    const listings = await findBusiness(httpTransport, parsed.data.name, parsed.data.city, parsed.data.country);
+    return { listings, searched: true };
+  } catch {
+    return { error: "We couldn't reach Google Maps just now. Enter the details yourself below, or try again.", searched: true };
+  }
+}
+
 export async function addLocationAction(_prev: AgencyState, form: FormData): Promise<AgencyState> {
   const user = await requireUser();
   const agency = await myAgency(user.id, form);
@@ -66,15 +93,18 @@ export async function addLocationAction(_prev: AgencyState, form: FormData): Pro
     return { error: field === "website" ? "Enter the website like example.com." : "Fill in every field (2 characters or more)." };
   }
   if (!(await consumeRateLimit(RATE_LIMITS.agencyAddPerAgency, agency.id))) return { error: "That's a lot of new locations for one day. Try again tomorrow." };
+  let orgId: string;
   try {
-    await addLocation(user.id, agency.id, parsed.data);
+    orgId = await addLocation(user.id, agency.id, parsed.data);
   } catch (err) {
     const rule = dbRule(err);
     if (rule) return { error: rule };
     throw err;
   }
+  // First Google Maps check, site scan and action plan, after the response.
+  after(() => prepareLocation(user.id, orgId, { dataforseo: httpTransport, dataSource: serverEnv().DATAFORSEO_MODE }));
   revalidatePath("/agency");
-  return { ok: `${parsed.data.name} was added. Its first rank checks run tonight.` };
+  return { ok: `${parsed.data.name} was added. Its first Google check and action plan will be ready in about a minute.` };
 }
 
 export async function connectLocationAction(_prev: AgencyState, form: FormData): Promise<AgencyState> {

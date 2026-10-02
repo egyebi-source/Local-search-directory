@@ -3,11 +3,13 @@ import { aiInsights } from "@/server/ai/insights";
 import type { GeminiTransport } from "@/server/ai/gemini";
 import { DataForSeoError, type DataForSeoTransport } from "@/server/dataforseo/client";
 import { z } from "zod";
+import { judgeSearch } from "@/server/keywords/relevance";
 import { keywordValues, localSerp, mapsRanking, pageTwoKeywords, phraseVolumes } from "@/server/dataforseo/market";
 import { SpendCapReachedError } from "@/server/security/spend";
 import type { Answers } from "@/server/onboarding/answers";
 import type { Country } from "@/server/db/schema";
 import {
+  cityFrom,
   keywordCandidates,
   MIN_MONTHLY_SEARCHES,
   phraseCandidates,
@@ -75,7 +77,12 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
     .map(([domain, ads]) => ({ domain, ads }))
     .sort((a, b) => b.ads - a.ads);
 
+  // Only searches a customer of this business would type (no pawn shops for a buying group).
+  const profile = { category: answers.category, city: answers.reach === "national" ? "" : cityFrom(answers.serviceArea), brand: answers.name };
+  const fits = (k: string, alreadyRanks = false) => k === keyword || judgeSearch(k, profile, { alreadyRanks }).topic !== null;
+
   const rescueTargets = ranked.value
+    .filter((k) => fits(k.keyword, true))
     .map((k) => ({
       keyword: k.keyword,
       position: k.position,
@@ -87,6 +94,7 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
     .slice(0, 10);
 
   const topKeywords = values.value
+    .filter((v) => fits(v.keyword))
     .map((v) => ({ keyword: v.keyword, monthlySearches: v.searchVolume, cpcUsd: v.cpcUsd }))
     .slice(0, 10);
   const cpcs = topKeywords.map((k) => k.cpcUsd).filter((c) => c > 0);

@@ -8,7 +8,10 @@ import type { DataForSeoTransport } from "@/server/dataforseo/client";
 import { auditPage, keywordIdeas, localSerp, siteKeywords, type SiteKeyword } from "@/server/dataforseo/market";
 import { actionItems, keywordPlans, organizations, type Country } from "@/server/db/schema";
 import type { Tx } from "@/server/db/tenant";
+import type { GeminiTransport } from "@/server/ai/gemini";
 import { SpendCapReachedError } from "@/server/security/spend";
+import { aiKeepSearches } from "./ai-filter";
+import { judgeSearch, seedsFor, tradeLabel } from "./relevance";
 
 // The keyword plan (core of the product): discover what people search for
 // this kind of business, see which searches competitors pay for, check
@@ -18,11 +21,6 @@ import { SpendCapReachedError } from "@/server/security/spend";
 const PAGE_ONE_SHARE = 0.1; // rough share of a search's clicks a page-1 result earns
 const MAX_TOPICS = 8;
 const SERP_CHECKS = 10; // live Google checks for the most valuable searches
-
-// Words that describe *how* people search, not *what* for.
-const MODIFIERS = new Set(
-  "near me best top cheap affordable cost costs price prices how much shop shops service services company companies in near my the a an for and local on open now 24 hour hours same day emergency free estimate estimates quote quotes reviews".split(" "),
-);
 
 const kwSchema = z.object({
   keyword: z.string().max(120),
@@ -56,29 +54,6 @@ export type PlanKeyword = z.infer<typeof kwSchema>;
 const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean);
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
-
-/** "collision repair ottawa near me" -> "collision repair" (the topic). */
-export function coreOf(keyword: string, cityWords: string[]): string {
-  return words(keyword)
-    .filter((w) => !MODIFIERS.has(w) && !cityWords.includes(w))
-    .join(" ");
-}
-
-// Searches by people who aren't customers (job seekers, students, DIYers...).
-const NOT_CUSTOMERS = new Set(
-  "job jobs hiring career careers salary salaries wage wages course courses school schools training certification diy kit kits game games simulator meaning definition lawyer lawyers".split(" "),
-);
-
-/**
- * Is a search worth targeting? The research step already returns searches
- * related to the business type; drop the business's own name (it already
- * gets those) and searches by people who aren't customers.
- */
-export function relevant(keyword: string, brandWords: string[]): boolean {
-  const ws = words(keyword);
-  if (ws.some((w) => NOT_CUSTOMERS.has(w)) || ws.includes("how") && ws.includes("to")) return false;
-  return !(brandWords.length && brandWords.every((b) => ws.includes(b)));
-}
 
 export function isHomepage(url: string): boolean {
   try {
@@ -171,9 +146,7 @@ export function assemblePlan(
   },
 ): KeywordPlan {
   const { business } = input;
-  const cityWords = words(business.city);
-  const catWords = words(business.category).filter((w) => !MODIFIERS.has(w));
-  const brandWords = words(business.name).filter((w) => !catWords.includes(w) && !MODIFIERS.has(w));
+  const profile = { category: business.category, city: business.city, brand: business.name };
   const ranks = new Map(input.site.map((k) => [k.keyword.toLowerCase(), k]));
 
   // All candidate searches: discovered ideas plus anything the site already ranks for.
@@ -183,8 +156,10 @@ export function assemblePlan(
 
   const groups = new Map<string, PlanKeyword[]>();
   for (const k of pool.values()) {
-    if (k.searches <= 0 || !relevant(k.keyword, brandWords)) continue;
-    const core = coreOf(k.keyword, cityWords) || words(business.category).join(" ");
+    if (k.searches <= 0) continue;
+    // Only searches a customer of this business would type, grouped by service.
+    const core = judgeSearch(k.keyword, profile, { alreadyRanks: ranks.has(k.keyword.toLowerCase()) }).topic;
+    if (!core) continue;
     const r = ranks.get(k.keyword.toLowerCase());
     const s = input.serp.get(k.keyword.toLowerCase());
     const list = groups.get(core) ?? [];
@@ -242,13 +217,23 @@ export async function buildKeywordPlan(
   t: DataForSeoTransport,
   org: { name: string; domain: string; category: string; city: string; country: Country },
   latest: Snapshot | null,
+  gemini: GeminiTransport | null = null,
 ): Promise<KeywordPlan> {
-  const seeds = [org.category, `${org.category} ${org.city}`, `${org.category} near me`].map((s) => s.toLowerCase());
+  const seeds = seedsFor(org.category, org.city);
   const fresh = latest && Date.now() - new Date(`${latest.takenOn}T00:00:00Z`).getTime() < 8 * 86_400_000;
-  const [ideas, site] = await Promise.all([
+  const [rawIdeas, rawSite] = await Promise.all([
     keywordIdeas(t, seeds, org.country).catch(capOr([])),
     fresh ? Promise.resolve(latest!.data.keywords) : siteKeywords(t, org.domain, org.country).catch(capOr([] as SiteKeyword[])),
   ]);
+
+  // Rules first, then a second opinion that can only remove searches.
+  const profile = { category: org.category, city: org.city, brand: org.name };
+  const passes = (alreadyRanks: boolean) => (k: { keyword: string; searches: number }) =>
+    k.searches > 0 && judgeSearch(k.keyword, profile, { alreadyRanks }).topic !== null;
+  const candidates = [...new Set([...rawIdeas.filter(passes(false)), ...rawSite.filter(passes(true))].sort((a, b) => b.searches - a.searches).map((k) => k.keyword.toLowerCase()))];
+  const keep = await aiKeepSearches(gemini, { trade: tradeLabel(org.category), area: org.city }, candidates);
+  const ideas = rawIdeas.filter((k) => keep.has(k.keyword.toLowerCase()));
+  const site = rawSite.filter((k) => keep.has(k.keyword.toLowerCase()));
 
   // Live Google check of the most valuable searches: who pays for ads, who's top 3.
   const valuable = [...ideas].sort((a, b) => b.searches * b.cpcUsd - a.searches * a.cpcUsd).slice(0, SERP_CHECKS);
@@ -303,7 +288,7 @@ export async function loadPlan(tx: Tx, orgId: string): Promise<{ builtOn: string
 export async function buildAndSavePlan(
   orgId: string,
   run: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>,
-  deps: { dataforseo: DataForSeoTransport; dataSource: "sandbox" | "live" },
+  deps: { dataforseo: DataForSeoTransport; dataSource: "sandbox" | "live"; gemini?: GeminiTransport | null },
 ): Promise<KeywordPlan | null> {
   const ctx = await run(async (tx) => ({
     org: (await tx.select().from(organizations).where(eq(organizations.id, orgId)))[0],
@@ -315,6 +300,7 @@ export async function buildAndSavePlan(
     deps.dataforseo,
     { name: o.name.replace(/\s*\(Demo\)$/, ""), domain: o.websiteDomain, category: o.category, city: cityFrom(o.serviceArea ?? ""), country: (o.country ?? "CA") as Country },
     ctx.latest,
+    deps.gemini ?? null,
   );
   await run((tx) => savePlan(tx, orgId, deps.dataSource, plan));
   return plan;

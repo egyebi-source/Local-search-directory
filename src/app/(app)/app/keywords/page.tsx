@@ -138,6 +138,20 @@ export default async function KeywordPlanPage() {
 
       {!plan ? (
         <BuildPlanButton label="Build my keyword plan" />
+      ) : plan.topics.length === 0 ? (
+        <div className="flex max-w-3xl flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
+          <p className="font-medium">We didn&apos;t find searches we&apos;re confident your customers type.</p>
+          <p className="text-sm text-slate-600">
+            We only show searches that match what you do, and we left out everything else (other trades, other cities, people looking
+            for information rather than a business). This usually means the business type on file is very specific, or your customers
+            find you by name or referral rather than by searching. Check the main service under{" "}
+            <Link href="/app/team#details" className="underline">
+              Team → Business details
+            </Link>{" "}
+            and rebuild.
+          </p>
+          <BuildPlanButton label="Rebuild my plan" />
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

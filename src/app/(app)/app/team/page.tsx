@@ -7,7 +7,12 @@ import { managingAgency, pendingConnectCode } from "@/server/agency/agency";
 import { canInvite, listMembers, listPendingInvites } from "@/server/org/team";
 import { changeRoleAction, endAgencyAction, removeMemberAction, revokeInviteAction } from "../actions";
 import { AgencyCodeButton } from "./agency-code";
+import { canEditDetails, loadDetails } from "@/server/org/details";
+import { DetailsForm } from "./details-form";
 import { InviteForm } from "./invite-form";
+
+// Changing the website scans the new site right after the response.
+export const maxDuration = 60;
 
 const fmt = (d: Date) => d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 
@@ -18,11 +23,12 @@ const ERRORS: Record<string, string> = {
 
 export default async function TeamPage({ searchParams }: PageProps<"/app/team">) {
   const { error } = await searchParams;
-  const { members, invites, agency, code, ctx } = await withCurrentOrg(async (tx, ctx) => ({
+  const { members, invites, agency, code, details, ctx } = await withCurrentOrg(async (tx, ctx) => ({
     members: await listMembers(tx, ctx),
     invites: canInvite(ctx) ? await listPendingInvites(tx, ctx) : [],
     agency: await managingAgency(tx, ctx.orgId),
     code: ctx.role === "owner" ? await pendingConnectCode(tx, ctx.orgId) : null,
+    details: canEditDetails(ctx) ? await loadDetails(tx, ctx.orgId) : null,
     ctx,
   }));
   const isOwner = ctx.role === "owner";
@@ -36,6 +42,16 @@ export default async function TeamPage({ searchParams }: PageProps<"/app/team">)
         <p role="alert" className="text-sm text-red-700">
           {errorMessage}
         </p>
+      ) : null}
+
+      {details ? (
+        <Card id="details" className="flex flex-col gap-3">
+          <CardTitle>Business details</CardTitle>
+          <p className="text-sm text-slate-600">Everything we check and suggest is based on these. Use the business&apos;s own website, not a directory listing.</p>
+          <DetailsForm
+            details={{ name: details.name, website: details.website ?? "", category: details.category ?? "", serviceArea: details.serviceArea ?? "" }}
+          />
+        </Card>
       ) : null}
 
       <Card className="flex flex-col gap-3">
