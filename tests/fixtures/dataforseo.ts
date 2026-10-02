@@ -76,6 +76,20 @@ export const instantPage = envelope(0.000125, {
   items: [{ url: "https://acmecollision.ca/", onpage_score: 81.5, checks: { no_title: false, no_description: true, no_image_alt: true, is_https: true, something_new: true } }],
 });
 
+export const ideas = envelope(0.012, {
+  items: [
+    { keyword: "Collision Repair Ottawa", keyword_info: { search_volume: 880, cpc: 9.8, competition: 0.7 } },
+    { keyword: "collision repair near me", keyword_info: { search_volume: 1900, cpc: 11.4, competition: 0.8 } },
+    { keyword: "bumper repair ottawa", keyword_info: { search_volume: 390, cpc: 8.95, competition: 0.6 } },
+    { keyword: "bumper repair cost", keyword_info: { search_volume: 210, cpc: 3.2, competition: 0.3 } },
+    { keyword: "car painting near me", keyword_info: { search_volume: 720, cpc: 5.2, competition: 0.5 } },
+    { keyword: "acme collision reviews", keyword_info: { search_volume: 50, cpc: 1, competition: 0.1 } },
+    { keyword: "collision repair jobs ottawa", keyword_info: { search_volume: 900, cpc: 2, competition: 0.9 } },
+    { keyword: "how to fix a dent yourself", keyword_info: { search_volume: 400, cpc: 0.5 } },
+    { keyword: "collision repair estimate", keyword_info: { search_volume: 0, cpc: 0 } },
+  ],
+});
+
 /** Fake transport that answers by endpoint and records every request. */
 export function fakeDataForSeo() {
   const calls: { path: string; body: unknown }[] = [];
@@ -85,6 +99,7 @@ export function fakeDataForSeo() {
     if (path.startsWith("serp/")) return serp;
     if (path.includes("ranked_keywords")) return ranked;
     if (path.includes("domain_rank_overview")) return overview;
+    if (path.includes("keyword_ideas")) return ideas;
     if (path.includes("instant_pages")) return instantPage;
     if (path.includes("keyword_suggestions")) return suggestions;
     throw new Error(`unexpected path ${path}`);

@@ -157,7 +157,7 @@ export const en = {
     overviewTitle: "Overview",
     overviewBody: "Your Google Maps spot, ranking and reviews are tracked daily on the Progress page:",
     switchOrg: "Switch business",
-    nav: { overview: "Dashboard", actions: "Action plan", progress: "Progress", assessment: "First assessment", team: "Team", billing: "Billing" },
+    nav: { overview: "Dashboard", keywords: "Keyword plan", actions: "Action plan", progress: "Progress", assessment: "First assessment", team: "Team", billing: "Billing" },
   },
   progress: {
     title: "Progress",

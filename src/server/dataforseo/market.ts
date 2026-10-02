@@ -236,12 +236,20 @@ export async function siteKeywords(t: DataForSeoTransport, domain: string, count
   });
 }
 
-export type PageAudit = { url: string; score: number | null; failed: string[] };
+export type PageAudit = { url: string; score: number | null; failed: string[]; title: string | null; h1: string | null };
 
 const pageItem = z.object({
   url: str,
   onpage_score: num,
   checks: z.record(z.string(), z.boolean().nullable()).nullable().optional(),
+  meta: z
+    .object({
+      title: str,
+      htags: z.object({ h1: z.array(z.string()).nullable().optional() }).passthrough().nullable().optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional(),
 });
 
 /** Checks that are problems when true (DataForSEO on-page "checks"). */
@@ -257,5 +265,35 @@ export async function auditPage(t: DataForSeoTransport, url: string): Promise<Pa
   const [item] = parseItems(raw, pageItem);
   if (!item) return null;
   const checks = item.checks ?? {};
-  return { url, score: item.onpage_score ?? null, failed: BAD_CHECKS.filter((c) => checks[c] === true) };
+  return {
+    url,
+    score: item.onpage_score ?? null,
+    failed: BAD_CHECKS.filter((c) => checks[c] === true),
+    title: item.meta?.title?.slice(0, 300) ?? null,
+    h1: item.meta?.htags?.h1?.[0]?.slice(0, 300) ?? null,
+  };
+}
+
+export type KeywordIdea = { keyword: string; searches: number; cpcUsd: number; competition: number | null };
+
+const ideaItem = z.object({
+  keyword: z.string(),
+  keyword_info: z.object({ search_volume: num, cpc: num, competition: num }).nullable().optional(),
+});
+
+/** Searches related to the seed phrases (what people type), with volume and ad cost. */
+export async function keywordIdeas(t: DataForSeoTransport, seeds: string[], country: Country, limit = 150): Promise<KeywordIdea[]> {
+  const raw = await liveTask(t, "dataforseo_labs/google/keyword_ideas/live", {
+    keywords: seeds.slice(0, 20),
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+    limit,
+    order_by: ["keyword_info.search_volume,desc"],
+  });
+  return parseItems(raw, ideaItem).map((i) => ({
+    keyword: i.keyword.toLowerCase().slice(0, 120),
+    searches: i.keyword_info?.search_volume ?? 0,
+    cpcUsd: i.keyword_info?.cpc ?? 0,
+    competition: i.keyword_info?.competition ?? null,
+  }));
 }

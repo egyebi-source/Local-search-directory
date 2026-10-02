@@ -35,7 +35,17 @@ export const snapshotSchema = z.object({
   audit: z
     .object({
       score: z.number().min(0).max(100).nullable(),
-      pages: z.array(z.object({ url: z.string().max(2048), score: z.number().nullable(), failed: z.array(z.string().max(60)).max(40) })).max(10),
+      pages: z
+        .array(
+          z.object({
+            url: z.string().max(2048),
+            score: z.number().nullable(),
+            failed: z.array(z.string().max(60)).max(40),
+            title: z.string().max(300).nullable().optional(),
+            h1: z.string().max(300).nullable().optional(),
+          }),
+        )
+        .max(10),
     })
     .nullable(),
 });

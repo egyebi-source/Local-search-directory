@@ -514,3 +514,21 @@ export const stripeEvents = pgTable("stripe_events", {
   type: text("type").notNull(),
   createdAt: createdAt(),
 });
+
+// Keyword plan: the searches that matter for this business, grouped into
+// topics, each checked against the business's pages, with the change to
+// make. Rebuilt on demand; history kept (append-only for the app).
+export const keywordPlans = pgTable(
+  "keyword_plans",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    builtOn: date("built_on").notNull(),
+    dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("keyword_plans_org_idx").on(t.orgId, t.createdAt)],
+);

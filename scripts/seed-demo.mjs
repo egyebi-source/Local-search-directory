@@ -230,6 +230,59 @@ try {
     ]);
   }
 
+  // Keyword plan: topics with the searches people use, who pays for ads,
+  // and how well the shop's pages match. The suggested changes are written
+  // by the app's own templates when the page loads.
+  const HOME = { url: `https://${DOMAIN}/`, title: "Acme Collision – Auto Body Shop Ottawa", h1: "Ottawa's Trusted Body Shop" };
+  const TOP3 = ["riversidecollision.test", "glebecollision.test", "bytownautobody.test"];
+  const k = (keyword, searches, cpcUsd, position, url, adsBy = null, top3 = null) => ({ keyword, searches, cpcUsd, position, url, adsBy, top3 });
+  const TOPICS = [
+    { name: "collision repair", status: "aligned", matched: true,
+      page: { url: `https://${DOMAIN}/collision-repair`, title: "Collision Repair in Ottawa | Acme Collision", h1: "Collision Repair in Ottawa" },
+      keywords: [
+        k("collision repair near me", 1900, 11.4, 9, `https://${DOMAIN}/collision-repair`, ["riversidecollision.test", "bytownautobody.test"], TOP3),
+        k("collision repair ottawa", 880, 9.8, 6, `https://${DOMAIN}/collision-repair`, [], TOP3),
+        k("best collision repair ottawa", 110, 12.1, null, null, ["riversidecollision.test"], TOP3),
+        k("collision repair kanata", 90, 8.8, 4, `https://${DOMAIN}/kanata`, [], null),
+      ] },
+    { name: "car painting", status: "missing", matched: null, page: null,
+      keywords: [
+        k("car painting near me", 720, 5.2, null, null, ["colourcraftpaint.test", "riversidecollision.test"], ["colourcraftpaint.test", "yelp.test", "kijiji.test"]),
+        k("car painting ottawa", 390, 6.4, null, null, ["colourcraftpaint.test"], ["colourcraftpaint.test", "riversidecollision.test", "yelp.test"]),
+        k("car painting cost", 260, 2.9, null, null, null, null),
+      ] },
+    { name: "bumper repair", status: "weak", matched: false, page: HOME,
+      keywords: [
+        k("bumper repair ottawa", 390, 8.95, 11, HOME.url, ["bytownautobody.test"], TOP3),
+        k("bumper repair near me", 320, 7.5, null, null, ["bytownautobody.test", "riversidecollision.test"], TOP3),
+        k("bumper repair cost", 210, 3.2, null, null, null, null),
+      ] },
+    { name: "auto glass", status: "weak", matched: false, page: HOME,
+      keywords: [
+        k("auto glass near me", 880, 8.6, null, null, ["speedyglass.test", "glassmasters.test"], ["speedyglass.test", "glassmasters.test", "yelp.test"]),
+        k("auto glass ottawa", 590, 7.7, 33, HOME.url, ["speedyglass.test"], ["speedyglass.test", "glassmasters.test", "ottawaglass.test"]),
+        k("best auto glass ottawa", 90, 9.0, null, null, null, null),
+      ] },
+    { name: "dent repair", status: "weak", matched: false, page: HOME,
+      keywords: [
+        k("dent repair ottawa", 320, 6.2, 10, HOME.url, [], TOP3),
+        k("car door dent repair", 390, 4.4, 21, HOME.url, null, null),
+        k("paintless dent repair ottawa", 170, 6.9, 13, HOME.url, ["dentwizard.test"], ["dentwizard.test", "topdent.test", "yelp.test"]),
+      ] },
+    { name: "rust repair", status: "aligned", matched: true,
+      page: { url: `https://${DOMAIN}/rust-repair`, title: "Rust Repair Ottawa | Acme Collision", h1: "Rust Repair in Ottawa" },
+      keywords: [k("rust repair ottawa", 140, 5.9, 9, `https://${DOMAIN}/rust-repair`, null, null)] },
+  ].map((t) => {
+    const searches = t.keywords.reduce((a, x) => a + x.searches, 0);
+    const valueUsd = Math.round(t.keywords.reduce((a, x) => a + x.searches * x.cpcUsd * 0.1, 0));
+    const ranked = t.keywords.filter((x) => x.position !== null).map((x) => x.position);
+    return { ...t, searches, valueUsd, bestPosition: ranked.length ? Math.min(...ranked) : null };
+  });
+  await c.query(`INSERT INTO keyword_plans (id, org_id, built_on, data_source, data, created_at) VALUES ($1,$2,$3,'live',$4, now() - interval '1 day')`, [
+    randomUUID(), org, dayStr(-1),
+    { topics: TOPICS, totalSearches: TOPICS.reduce((a, t) => a + t.searches, 0), totalValueUsd: TOPICS.reduce((a, t) => a + t.valueUsd, 0) },
+  ]);
+
   // A sample campaign of fictional shops (one already claimed: the demo shop).
   const camp = randomUUID();
   await c.query(
