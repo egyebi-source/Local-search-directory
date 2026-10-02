@@ -362,3 +362,52 @@ export const adminAuditLog = pgTable(
   },
   (t) => [index("admin_audit_log_created_idx").on(t.createdAt)],
 );
+
+// --- Staff: "claim your ranking" campaigns (PRD Module 14) ----------------------
+
+// A campaign = one category in one city. Prospects are the businesses in
+// Google Maps for that search. Only platform admins can read these tables
+// (RLS); the public claim page goes through claim_* functions by token.
+export const campaigns = pgTable("campaigns", {
+  id: id(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  city: text("city").notNull(),
+  country: country("country").notNull(),
+  keyword: text("keyword").notNull(),
+  dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+export const prospectStatus = pgEnum("prospect_status", ["new", "opened", "claimed"]);
+
+export const prospects = pgTable(
+  "prospects",
+  {
+    id: id(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    businessName: text("business_name").notNull(),
+    domain: text("domain").notNull(),
+    // Numbers only; never other businesses' names.
+    report: jsonb("report").$type<Record<string, unknown>>().notNull(),
+    // SHA-256 of the claim link's token. Re-issuing a link replaces it.
+    tokenHash: text("token_hash").notNull(),
+    status: prospectStatus("status").notNull().default("new"),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedOrgId: uuid("claimed_org_id").references(() => organizations.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("prospects_token_hash_idx").on(t.tokenHash), index("prospects_campaign_idx").on(t.campaignId)],
+);
+
+// Businesses that said "not interested": never added to a campaign again.
+// Stores a hash of the domain, not the domain.
+export const prospectSuppressions = pgTable("prospect_suppressions", {
+  domainHash: text("domain_hash").primaryKey(),
+  createdAt: createdAt(),
+});

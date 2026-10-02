@@ -25,35 +25,45 @@ export const keywordSchema = z
 
 const today = sql`(now() AT TIME ZONE 'UTC')::date`;
 
-type CheckValues = Pick<
+export type CheckValues = Pick<
   typeof rankChecks.$inferInsert,
   "mapRank" | "organicRank" | "rating" | "reviews" | "leaderAvgRating" | "leaderAvgReviews"
 >;
 
-/** Start tracking the assessment's main search, with the assessment as its "before". */
-export async function seedFromAssessment(tx: Tx, orgId: string, r: AssessmentResult): Promise<void> {
+/** Start tracking a search with an existing measurement as its dated "before". */
+export async function seedBaseline(
+  tx: Tx,
+  orgId: string,
+  b: { keyword: string; country: Country; day: string; dataSource: "sandbox" | "live"; values: CheckValues },
+): Promise<void> {
   const [search] = await tx
     .insert(trackedSearches)
-    .values({ orgId, keyword: r.primaryKeyword, country: r.country })
+    .values({ orgId, keyword: b.keyword, country: b.country })
     .onConflictDoNothing()
     .returning({ id: trackedSearches.id });
   if (!search) return;
   await tx
     .insert(rankChecks)
-    .values({
-      orgId,
-      trackedSearchId: search.id,
-      day: r.generatedAt.slice(0, 10),
+    .values({ orgId, trackedSearchId: search.id, day: b.day, source: "assessment", dataSource: b.dataSource, ...b.values })
+    .onConflictDoNothing();
+}
+
+/** Start tracking the assessment's main search, with the assessment as its "before". */
+export async function seedFromAssessment(tx: Tx, orgId: string, r: AssessmentResult): Promise<void> {
+  await seedBaseline(tx, orgId, {
+    keyword: r.primaryKeyword,
+    country: r.country,
+    day: r.generatedAt.slice(0, 10),
+    dataSource: r.dataSource,
+    values: {
       mapRank: r.local?.yourRank ?? null,
       organicRank: r.metrics.yourPosition,
       rating: r.local?.you?.rating ?? null,
       reviews: r.local?.you?.reviews ?? null,
       leaderAvgRating: r.local?.leaderAvgRating ?? null,
       leaderAvgReviews: r.local?.leaderAvgReviews ?? null,
-      source: "assessment",
-      dataSource: r.dataSource,
-    })
-    .onConflictDoNothing();
+    },
+  });
 }
 
 export class TrackingLimitError extends Error {}

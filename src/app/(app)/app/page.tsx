@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { FullDetails, InsightCards, LocalTiles, MetricTiles, SampleDataBanner } from "@/components/assessment/parts";
 import { t } from "@/lib/i18n/en";
 import { toLocalSummary, type AssessmentResult } from "@/server/assessment/result";
@@ -39,7 +40,12 @@ export default async function OverviewPage() {
           <FullDetails r={assessment} />
         </>
       ) : (
-        <p>{t.app.overviewBody}</p>
+        <p>
+          {t.app.overviewBody}{" "}
+          <Link href="/app/progress" className="font-medium underline">
+            {t.app.nav.progress}
+          </Link>
+        </p>
       )}
     </div>
   );

@@ -71,6 +71,13 @@
       "when": 1790901179217,
       "tag": "0009_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790901413051,
+      "tag": "0010_campaigns",
+      "breakpoints": true
     }
   ]
 }

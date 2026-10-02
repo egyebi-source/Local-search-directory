@@ -154,7 +154,7 @@ export const en = {
   },
   app: {
     overviewTitle: "Overview",
-    overviewBody: "Your dashboard will appear here once your data is connected.",
+    overviewBody: "Your Google Maps spot, ranking and reviews are tracked daily on the Progress page:",
     switchOrg: "Switch business",
     nav: { overview: "Overview", progress: "Progress", team: "Team" },
   },

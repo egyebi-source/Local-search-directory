@@ -36,9 +36,14 @@ export default async function AdminPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">TorqueRank admin</h1>
-        <Link href="/app" className="text-sm underline">
-          Back to app
-        </Link>
+        <nav className="flex gap-4 text-sm">
+          <Link href="/admin/campaigns" className="underline">
+            Campaigns
+          </Link>
+          <Link href="/app" className="underline">
+            Back to app
+          </Link>
+        </nav>
       </header>
 
       <section className="flex flex-col gap-3">
