@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { getSnapshot } from "@/server/assessment/snapshots";
-import { createOrganization } from "@/server/db/tenant";
+import { createOrganization, withOrg } from "@/server/db/tenant";
+import { seedFromAssessment } from "@/server/tracking/checks";
 import { consumeClaimedDraft, consumeDraft, DRAFT_COOKIE } from "@/server/onboarding/drafts";
 import { setCurrentOrgCookie } from "@/server/org/current";
 
@@ -45,6 +46,8 @@ export async function GET() {
     },
     snapshot ? { assessment: snapshot as unknown as Record<string, unknown> } : undefined,
   );
+  // Start tracking the main search, with this assessment as the "before".
+  if (snapshot) await withOrg(userId, orgId, (tx) => seedFromAssessment(tx, orgId, snapshot));
   await setCurrentOrgCookie(orgId);
   redirect("/app");
 }

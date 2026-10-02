@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   date,
   index,
   integer,
@@ -8,6 +9,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -267,4 +269,69 @@ export const orgAssessments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("org_assessments_org_id_idx").on(t.orgId, t.createdAt)],
+);
+
+// --- Tenant: progress tracking (PRD Module 12) ------------------------------------
+
+// Searches whose Google Maps and Google position we check daily. Up to
+// TRACKED_SEARCH_LIMIT active per org (enforced in code; costs money).
+export const trackedSearches = pgTable(
+  "tracked_searches",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    keyword: text("keyword").notNull(),
+    country: country("country").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("tracked_searches_org_keyword_idx").on(t.orgId, t.keyword, t.country)],
+);
+
+// One row per tracked search per day. Append-only for the app (no UPDATE or
+// DELETE grant), so the first row is a tamper-proof "before".
+export const rankChecks = pgTable(
+  "rank_checks",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    trackedSearchId: uuid("tracked_search_id")
+      .notNull()
+      .references(() => trackedSearches.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    mapRank: integer("map_rank"),
+    organicRank: integer("organic_rank"),
+    rating: real("rating"),
+    reviews: integer("reviews"),
+    leaderAvgRating: real("leader_avg_rating"),
+    leaderAvgReviews: integer("leader_avg_reviews"),
+    source: text("source").$type<"assessment" | "daily" | "manual">().notNull(),
+    dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("rank_checks_search_day_idx").on(t.trackedSearchId, t.day),
+    index("rank_checks_org_day_idx").on(t.orgId, t.day),
+  ],
+);
+
+// Changes the owner says they made ("I did this"), pinned to the timeline.
+export const siteChanges = pgTable(
+  "site_changes",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    note: text("note"),
+    madeOn: date("made_on").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("site_changes_org_idx").on(t.orgId, t.madeOn)],
 );

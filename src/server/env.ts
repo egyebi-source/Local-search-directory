@@ -36,6 +36,9 @@ const serverEnvSchema = z.object({
   ASSESSMENTS_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(3),
   ASSESSMENTS_GLOBAL_PER_DAY: z.coerce.number().int().min(1).default(50),
   TURNSTILE_SECRET_KEY: optional(z.string().min(1)),
+
+  // Background jobs. Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
+  CRON_SECRET: optional(z.string().min(32, "must be at least 32 characters")),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

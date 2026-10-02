@@ -68,6 +68,19 @@ export async function withOrg<T>(
   });
 }
 
+/**
+ * Background jobs only (no signed-in user): run `fn` scoped to one org so
+ * row-level security still applies. Never call this from a request handler
+ * with an org id that came from the browser.
+ */
+export async function withSystemOrg<T>(orgId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  const oid = parseId(orgId);
+  return getDb().transaction(async (tx) => {
+    await setSetting(tx, "app.org_id", oid);
+    return fn(tx);
+  });
+}
+
 /** Organizations the user belongs to, oldest first. */
 export async function listUserOrganizations(userId: string) {
   return withUser(userId, (tx) =>

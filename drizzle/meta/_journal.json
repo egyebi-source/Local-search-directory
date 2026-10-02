@@ -57,6 +57,13 @@
       "when": 1790869701825,
       "tag": "0007_draft_email_claim",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790900323288,
+      "tag": "0008_progress_tracking",
+      "breakpoints": true
     }
   ]
 }
