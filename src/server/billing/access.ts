@@ -4,7 +4,9 @@ export type AccessState =
   | { kind: "trialing"; daysLeft: number }
   | { kind: "active" }
   | { kind: "past_due" }
-  | { kind: "locked" };
+  | { kind: "locked" }
+  // Covered by the agency that manages this location (PRD Module 11).
+  | { kind: "agency"; agencyName: string };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

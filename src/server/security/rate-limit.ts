@@ -11,6 +11,10 @@ export const RATE_LIMITS = {
   loginEmailPerIp: { name: "login-email:ip", limit: 20, windowSeconds: 60 * 60 },
   invitePerOrg: { name: "invite:org", limit: 20, windowSeconds: 24 * 60 * 60 },
   draftPerIp: { name: "draft:ip", limit: 20, windowSeconds: 60 * 60 },
+  agencyAddPerAgency: { name: "agency-add:agency", limit: 30, windowSeconds: 24 * 60 * 60 },
+  agencyConnectPerUser: { name: "agency-connect:user", limit: 20, windowSeconds: 60 * 60 },
+  connectCodePerOrg: { name: "connect-code:org", limit: 10, windowSeconds: 24 * 60 * 60 },
+  agencyCreatePerUser: { name: "agency-create:user", limit: 5, windowSeconds: 24 * 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 /**

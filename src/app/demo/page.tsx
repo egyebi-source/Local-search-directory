@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Logo } from "@/components/marketing/logo";
 import { demoEnabled } from "@/server/demo/demo";
-import { enterAsAdminAction, enterAsOwnerAction, openClaimPageAction } from "./actions";
+import { enterAsAdminAction, enterAsAgencyAction, enterAsOwnerAction, openClaimPageAction } from "./actions";
 
 export const metadata: Metadata = { title: "Demo", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -44,7 +44,7 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
             Demo data isn&apos;t loaded on this deployment yet.
           </p>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Choice
             title="1. A shop owner's dashboard"
             body="Acme Collision (Demo), 60 days after signing up: Google Maps spot #9 → #4, reviews 48 → 97, and the changes that did it."
@@ -62,6 +62,12 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
             body="Your staff view: the funnel, customers, spending, and a sample campaign of 8 fictional Ottawa shops."
             action={enterAsAdminAction}
             cta="Enter as admin"
+          />
+          <Choice
+            title="4. A marketing agency"
+            body="Northside Marketing (Demo) managing 6 fictional shops: who's improving, who's slipping, and one click into any of them."
+            action={enterAsAgencyAction}
+            cta="Enter as the agency"
           />
         </div>
       </main>

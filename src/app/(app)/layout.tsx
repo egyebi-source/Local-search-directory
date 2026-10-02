@@ -1,20 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { listMyAgencies, managingAgency } from "@/server/agency/agency";
 import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n/en";
 import { withOrg } from "@/server/db/tenant";
 import { isDemoEmail } from "@/server/demo/demo";
-import { currentOrganization, orgAccess, requireUser } from "@/server/org/current";
+import { currentOrganization, noOrgRedirect, orgAccess, requireUser } from "@/server/org/current";
 import { signOutAction, switchOrgAction } from "./app/actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const { orgs, current } = await currentOrganization(user);
-  // No organization yet: finish sign-up from saved answers if there are any.
-  if (!current) redirect("/onboarding/complete");
+  // No organization yet: their agency, or finish sign-up from saved answers.
+  if (!current) return noOrgRedirect(user);
 
   const access = await withOrg(user.id, current.id, (tx) => orgAccess(tx, current.id));
   if (access.kind === "locked") redirect("/locked");
+  const agencies = await listMyAgencies(user.id);
+  const viaAgency =
+    current.role === "agency" ? ((await withOrg(user.id, current.id, (tx) => managingAgency(tx, current.id)))?.name ?? null) : null;
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -23,7 +27,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Link href="/app" className="font-semibold">
             {t.appName}
           </Link>
-          <nav className="flex gap-3 text-sm">
+          <nav className="flex flex-wrap gap-3 text-sm">
+            {agencies.length ? (
+              <Link href="/agency" className="font-medium">
+                ← All locations
+              </Link>
+            ) : null}
             <Link href="/app">{t.app.nav.overview}</Link>
             <Link href="/app/keywords">{t.app.nav.keywords}</Link>
             <Link href="/app/actions">{t.app.nav.actions}</Link>
@@ -69,6 +78,26 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="border-b border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
           <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
             Demo account: the business, numbers and competitors are fictional. <Link href="/demo" className="underline">Back to the demo menu</Link>
+          </p>
+        </div>
+      ) : null}
+      {current.role === "agency" ? (
+        <div className="border-b border-violet-300 bg-violet-50 text-violet-950 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
+          <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
+            You&apos;re working in <strong>{current.name.replace(/\s*\(Demo\)$/, "")}</strong>
+            {viaAgency ? <> for {viaAgency}</> : null}.{" "}
+            <Link href="/agency" className="font-medium underline">
+              Back to all locations
+            </Link>
+          </p>
+        </div>
+      ) : access.kind === "agency" ? (
+        <div className="border-b border-violet-300 bg-violet-50 text-violet-950 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
+          <p className="mx-auto w-full max-w-5xl px-4 py-2 text-sm">
+            Managed by <strong>{access.agencyName}</strong>, who covers your plan.{" "}
+            <Link href="/app/team" className="underline">
+              Agency access
+            </Link>
           </p>
         </div>
       ) : null}

@@ -46,7 +46,7 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 
 **Goals (v1):** assessment-first funnel (value before sign-up); 7-day no-card trial with paid monthly/annual plans; secure optional Google connection; daily cached dashboard; keyword-gap "Rescue Targets"; AI action checklist; full self-service disconnect and deletion.
 
-**Non-goals (v1):** managing or editing Google Ads campaigns; writing to GSC/GA4 (read-only only); publishing content to the user's website automatically; mobile app. Networks/agencies (Module 11) are planned after billing, not in the first launch.
+**Non-goals (v1):** managing or editing Google Ads campaigns; writing to GSC/GA4 (read-only only); publishing content to the user's website automatically; mobile app. Networks/agencies (Module 11): phase 1 built; agency checkout next.
 
 **Who it's for:** any business that wins customers from Google searches: local service businesses first (best fit: high value per customer, e.g. home services, auto body/repair, dental, legal), plus national brands via the "Across the whole country" option. Marketing goes one industry at a time.
 
@@ -148,13 +148,13 @@ Delivered in stages; each stage is a separate approval.
 - FR-13.3 **Agent safety:** the agent has a fixed list of tools, each scoped to one org via `withOrg`; no free-form web browsing or shell; competitor and web content is untrusted data (never instructions); per-org daily action and spend limits; all tool calls written to the audit log; prompts and outputs validated with Zod. No action that publishes or spends money without human approval.
 - FR-13.4 Model: Gemini by default (existing key and spend caps); provider kept behind one interface so it can be swapped.
 
-### Module 11 — Networks and agencies (planned, design with owner before building)
+### Module 11 — Networks and agencies (phase 1 built: workspace, locations, consent, roll-up)
 Who it's for: (a) networks of independent local businesses (e.g. Collision Collective and its member shops), (b) agencies/freelancers managing many clients. Both need one login over many businesses.
-- FR-11.1 A **network** groups many organizations. Network admins see a roll-up (per-location assessments, rescue targets, trends) and can open any member location they've been granted.
-- FR-11.2 **Each location remains its own organization** with its own data and RLS. A network never gets blanket access: a location owner explicitly accepts joining a network and can leave it; the network sees only what membership grants. Members' Google connections stay theirs.
-- FR-11.3 Network onboarding: bulk-invite member locations (CSV of name, website, city) → each gets a pre-run assessment and an invite to claim their dashboard.
-- FR-11.4 Billing options to decide: network pays per location (e.g. member benefit), or members pay individually with a network discount. White-label/co-branded reports for networks and agencies.
-- FR-11.5 Open decisions for the owner: per-location price, who owns a location's data if it leaves the network (default: the location), what network admins may see (default: summaries, not raw Google data, unless the location opts in).
+- FR-11.1 **Built.** An agency workspace at `/agency` lists every location it manages with each one's visibility, main search position (start → now, and this week's move), Google Maps spot, keyword topics aligned and open to-dos. "Open" goes into that location's normal dashboard; a banner shows whose account you're in.
+- FR-11.2 **Built.** Each location remains its own organization with its own data and RLS. The database decides agency access (`agency_can_open`): an active link, the user on that agency's team, and the agency's plan in good standing. Agency staff get the role `agency`: they can see and work on everything and invite the business owner, but not manage billing or change the team. The location's owner can remove the agency at any time (Team → Agency access); access ends immediately.
+- FR-11.3 **Built (one at a time).** Two ways in: the agency adds a new client (name, website, service, city; tracking and a first action plan start automatically), or the owner of an existing account creates a one-time code (12 characters, 7 days, stored hashed) and gives it to the agency. A location belongs to at most one agency. Bulk CSV import: later.
+- FR-11.4 Billing: the agency pays per location (price and minimum in the admin pricing table, default $29.99, min 5). A location covered by its agency needs no plan of its own. Agencies start with a 14-day trial covering up to 10 locations. **Agency checkout (Stripe, quantity = locations) is the next step**; white-label reports later.
+- FR-11.5 Decided defaults: the location owns its data if it leaves; when an agency stops managing a location nobody else belongs to, it's locked and deleted after 30 days. Agency staff management (inviting teammates to the agency) is next.
 
 ### Module 9 — Admin dashboard (TorqueRank staff only)
 - FR-9.1 Separate area at `/admin`, reachable only by users on a platform-admin allowlist stored in the database (not by any customer role). Admin sign-in requires a passkey or Google sign-in with 2-step verification; sessions expire after 8 hours.

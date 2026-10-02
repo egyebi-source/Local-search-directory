@@ -24,6 +24,11 @@ function requireOwner(ctx: OrgContext) {
   if (ctx.role !== "owner") throw new ForbiddenError();
 }
 
+/** Inviting: owners, and the managing agency (so it can hand the account to the business owner). */
+export function canInvite(ctx: Pick<OrgContext, "role">): boolean {
+  return ctx.role === "owner" || ctx.role === "agency";
+}
+
 export async function listMembers(tx: Tx, ctx: OrgContext) {
   return tx
     .select({
@@ -62,7 +67,7 @@ export async function createInvite(
   ctx: OrgContext,
   input: { email: string; role: MembershipRole },
 ): Promise<{ inviteId: string; token: string }> {
-  requireOwner(ctx);
+  if (!canInvite(ctx)) throw new ForbiddenError();
   const email = input.email.trim().toLowerCase();
 
   const [existing] = await tx
@@ -89,7 +94,7 @@ export async function createInvite(
 }
 
 export async function revokeInvite(tx: Tx, ctx: OrgContext, inviteId: string) {
-  requireOwner(ctx);
+  if (!canInvite(ctx)) throw new ForbiddenError();
   const updated = await tx
     .update(invites)
     .set({ revokedAt: new Date() })

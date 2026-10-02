@@ -6,7 +6,7 @@ import { t } from "@/lib/i18n/en";
 import { getPricing, monthsFree, usd } from "@/server/billing/pricing";
 import { billingEnabled } from "@/server/billing/stripe";
 import { withOrg } from "@/server/db/tenant";
-import { currentOrganization, orgAccess, requireUser } from "@/server/org/current";
+import { currentOrganization, noOrgRedirect, orgAccess, requireUser } from "@/server/org/current";
 import { signOutAction } from "../(app)/app/actions";
 
 // Shown instead of the dashboard once a trial ends unpaid. Reveals nothing
@@ -14,8 +14,8 @@ import { signOutAction } from "../(app)/app/actions";
 export default async function LockedPage() {
   const user = await requireUser();
   const { current } = await currentOrganization(user);
-  // No organization yet: finish sign-up from saved answers if there are any.
-  if (!current) redirect("/onboarding/complete");
+  // No organization yet: their agency, or finish sign-up from saved answers.
+  if (!current) return noOrgRedirect(user);
   const access = await withOrg(user.id, current.id, (tx) => orgAccess(tx, current.id));
   if (access.kind !== "locked") redirect("/app");
   const p = await getPricing();

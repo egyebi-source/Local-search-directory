@@ -8,7 +8,8 @@ export type AuditAction =
   | "invite.revoked"
   | "invite.accepted"
   | "member.removed"
-  | "member.role_changed";
+  | "member.role_changed"
+  | "agency.code_created";
 
 export async function audit(
   tx: Tx,

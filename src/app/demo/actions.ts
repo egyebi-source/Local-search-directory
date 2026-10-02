@@ -29,6 +29,10 @@ export async function enterAsAdminAction(): Promise<void> {
   await enter("admin", "/admin");
 }
 
+export async function enterAsAgencyAction(): Promise<void> {
+  await enter("agency", "/agency");
+}
+
 export async function openClaimPageAction(): Promise<void> {
   if (!demoEnabled()) notFound();
   const token = await demoClaimToken();

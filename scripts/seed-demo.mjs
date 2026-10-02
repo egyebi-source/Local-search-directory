@@ -18,6 +18,7 @@ if (!enabled || !url) {
 
 const DEMO_OWNER = "demo-owner@torquerank.test";
 const DEMO_ADMIN = "demo-admin@torquerank.test";
+const DEMO_AGENCY = "demo-agency@torquerank.test";
 const DOMAIN = "acmecollision.test";
 const sha = (s) => createHash("sha256").update(s).digest("hex");
 const dayStr = (offset) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
@@ -78,6 +79,11 @@ try {
   await c.query(
     `DELETE FROM organizations WHERE id IN (SELECT m.org_id FROM memberships m JOIN users u ON u.id = m.user_id WHERE u.email LIKE '%@torquerank.test')`,
   );
+  // Demo agency locations nobody else belongs to, then the agency itself.
+  await c.query(
+    `DELETE FROM organizations WHERE id IN (SELECT l.org_id FROM agency_locations l JOIN agencies a ON a.id = l.agency_id WHERE a.name LIKE '%(Demo)')`,
+  );
+  await c.query(`DELETE FROM agencies WHERE name LIKE '%(Demo)'`);
   await c.query(`DELETE FROM users WHERE email LIKE '%@torquerank.test'`);
   await c.query(`DELETE FROM campaigns WHERE name LIKE '%(Demo)'`);
 
@@ -313,6 +319,121 @@ try {
       ],
     );
   }
+  // A demo agency managing six fictional shops (PRD Module 11). Acme
+  // Collision is left out on purpose: its owner can try "Give an agency
+  // access" and the agency can connect it with the code.
+  const agencyUser = randomUUID();
+  await c.query(`INSERT INTO users (id, email, name, email_verified) VALUES ($1, $2, 'Sam (demo agency)', now())`, [agencyUser, DEMO_AGENCY]);
+  const agency = randomUUID();
+  await c.query(`INSERT INTO agencies (id, name, plan_status, trial_ends_at, created_at) VALUES ($1, 'Northside Marketing (Demo)', 'trialing', now() + interval '11 days', now() - interval '60 days')`, [agency]);
+  await c.query(`INSERT INTO agency_members (agency_id, user_id, role) VALUES ($1, $2, 'owner')`, [agency, agencyUser]);
+
+  // org: [[day, rank]...] for the main search; days run 0..60 like above.
+  const SHOPS = [
+    { name: "Kanata Auto Body", domain: "kanataautobody.test", city: "Kanata, ON", category: "Collision repair", ownerEmail: "owner-kanata@torquerank.test", start: 0,
+      searches: [{ keyword: "collision repair kanata", org: [[0, 22], [20, 21], [45, 9], [60, 7]], map: [[0, 8], [30, 6], [60, 3]] },
+                 { keyword: "auto body shop kanata", org: [[0, 31], [25, 30], [60, 12]], map: [[0, 11], [60, 6]] }],
+      reviews: [[0, 61], [60, 104]], traffic: [140, 352], topics: [["collision repair", "aligned"], ["bumper repair", "aligned"], ["car painting", "weak"], ["dent repair", "missing"]] },
+    { name: "Barrhaven Collision Centre", domain: "barrhavencollision.test", city: "Barrhaven, ON", category: "Collision repair", ownerEmail: null, start: 0,
+      searches: [{ keyword: "collision repair barrhaven", org: [[0, 17], [30, 16], [60, 11]], map: [[0, 6], [60, 4]] }],
+      reviews: [[0, 33], [60, 51]], traffic: [88, 141], topics: [["collision repair", "weak"], ["auto glass", "missing"], ["rust repair", "aligned"]] },
+    { name: "Orleans Auto Glass", domain: "orleansautoglass.test", city: "Orleans, ON", category: "Auto glass", ownerEmail: null, start: 0,
+      searches: [{ keyword: "auto glass orleans", org: [[0, 12], [60, 12]], map: [[0, 5], [60, 5]] }],
+      reviews: [[0, 120], [60, 126]], traffic: [210, 214], topics: [["windshield replacement", "aligned"], ["windshield chip repair", "weak"], ["car window tinting", "missing"]] },
+    { name: "Nepean Paint & Body", domain: "nepeanpaintbody.test", city: "Nepean, ON", category: "Car painting", ownerEmail: "owner-nepean@torquerank.test", start: 0,
+      searches: [{ keyword: "car painting nepean", org: [[0, 8], [50, 8], [60, 13]], map: [[0, 4], [50, 4], [60, 7]] }],
+      reviews: [[0, 88], [60, 92]], traffic: [260, 198], topics: [["car painting", "weak"], ["scratch repair", "missing"], ["collision repair", "aligned"]] },
+    { name: "Stittsville Tire & Auto", domain: "stittsvilleauto.test", city: "Stittsville, ON", category: "Auto repair", ownerEmail: null, start: 25,
+      searches: [{ keyword: "auto repair stittsville", org: [[25, 31], [40, 24], [60, 15]], map: [[25, 14], [60, 8]] }],
+      reviews: [[25, 19], [60, 40]], traffic: [40, 96], topics: [["auto repair", "weak"], ["brake repair", "missing"], ["tire change", "aligned"], ["oil change", "missing"]] },
+    { name: "Kingston Collision", domain: "kingstoncollision.test", city: "Kingston, ON", category: "Collision repair", ownerEmail: null, start: 60, searches: [], topics: [] },
+  ];
+  for (const [n, shop] of SHOPS.entries()) {
+    const o = randomUUID();
+    await c.query(
+      `INSERT INTO organizations (id, name, website_domain, service_area, category, country, countries, plan_status, trial_ends_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'CA', '{CA}', 'trialing', now(), now() - make_interval(days => $6))`,
+      [o, `${shop.name} (Demo)`, shop.domain, shop.city, shop.category, 60 - shop.start],
+    );
+    await c.query(
+      `INSERT INTO agency_locations (id, agency_id, org_id, created_by_agency, started_at) VALUES ($1, $2, $3, $4, now() - make_interval(days => $5))`,
+      [randomUUID(), agency, o, !shop.ownerEmail, 60 - shop.start],
+    );
+    if (shop.ownerEmail) {
+      const u = randomUUID();
+      await c.query(`INSERT INTO users (id, email, name, email_verified) VALUES ($1, $2, $3, now())`, [u, shop.ownerEmail, `${shop.name} owner (demo)`]);
+      await c.query(`INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`, [o, u]);
+    }
+    if (shop.start === 60) {
+      // Added yesterday: tracking starts tonight, nothing measured yet.
+      await c.query(`INSERT INTO tracked_searches (id, org_id, keyword, country) VALUES ($1, $2, 'collision repair kingston', 'CA')`, [randomUUID(), o]);
+      continue;
+    }
+    for (const [k, srch] of shop.searches.entries()) {
+      const sid = randomUUID();
+      await c.query(`INSERT INTO tracked_searches (id, org_id, keyword, country, created_at) VALUES ($1, $2, $3, 'CA', now() - make_interval(days => $4))`, [sid, o, srch.keyword, 60 - shop.start]);
+      for (let i = shop.start; i <= 60; i++) {
+        await c.query(
+          `INSERT INTO rank_checks (id, org_id, tracked_search_id, day, map_rank, organic_rank, rating, reviews, leader_avg_rating, leader_avg_reviews, source, ai_overview, ai_cited, data_source)
+           VALUES ($1,$2,$3,$4,$5,$6,4.5,$7,4.8,300,$8,$9,false,'live')`,
+          [randomUUID(), o, sid, dayStr(i - 60), series(srch.map, i, n + k), series(srch.org, i, n + k + 3), series(shop.reviews, i, 0, false),
+           i === shop.start ? "assessment" : "daily", k === 0],
+        );
+      }
+    }
+    // Weekly whole-site snapshots.
+    const main = shop.searches[0].keyword;
+    for (let week = Math.ceil(shop.start / 7); week <= 8; week++) {
+      const w = week / 8;
+      const kws = [main, ...shop.searches.slice(1).map((x) => x.keyword), `${shop.category.toLowerCase()} near me`, shop.name.toLowerCase()].map((keyword, j) => {
+        const position = j === 0 ? series(shop.searches[0].org, week * 7 + 4, n, false) ?? 40 : j === 3 ? 1 : 10 + j * 6;
+        return { keyword, position, searches: [480, 260, 1300, 70][j] ?? 100, cpcUsd: [8.4, 7.1, 9.9, 1.0][j] ?? 5, url: `https://${shop.domain}/`, trafficEst: position <= 10 ? 20 : 2 };
+      });
+      const traffic = Math.round(shop.traffic[0] + (shop.traffic[1] - shop.traffic[0]) * w);
+      await c.query(`INSERT INTO seo_snapshots (id, org_id, taken_on, data_source, data) VALUES ($1,$2,$3,'live',$4)`, [
+        randomUUID(), o, dayStr(week * 7 - 56),
+        {
+          overview: { trafficEst: traffic, keywords: Math.round(traffic / 3), trafficValueUsd: traffic * 9, paidKeywords: 0,
+            buckets: { top3: Math.round(traffic / 60), top10: Math.round(traffic / 25), top20: Math.round(traffic / 14), top100: Math.round(traffic / 3) } },
+          keywords: kws,
+          audit: { score: 82, pages: [{ url: `https://${shop.domain}/`, failed: ["no_image_alt"], score: 93 }, { url: `https://${shop.domain}/contact`, failed: ["no_description", "no_image_alt"], score: 86 }] },
+        },
+      ]);
+    }
+    // Keyword plan.
+    const city = shop.city.split(",")[0].toLowerCase();
+    const topics = shop.topics.map(([name, status], j) => {
+      const page = status === "aligned"
+        ? { url: `https://${shop.domain}/${name.replaceAll(" ", "-")}`, title: `${name[0].toUpperCase()}${name.slice(1)} in ${shop.city.split(",")[0]} | ${shop.name}`, h1: `${name} in ${city}` }
+        : status === "weak" ? { url: `https://${shop.domain}/`, title: `${shop.name} – ${shop.category}`, h1: shop.name } : null;
+      const pos = status === "aligned" ? 4 + j : status === "weak" ? 14 + j : null;
+      const keywords = [
+        { keyword: `${name} ${city}`, searches: 320 - j * 40, cpcUsd: 7.5, position: pos, url: page?.url ?? null, adsBy: ["bigchainauto.test"], top3: ["bigchainauto.test", "yelp.test", "kijiji.test"] },
+        { keyword: `${name} near me`, searches: 590 - j * 60, cpcUsd: 8.9, position: pos === null ? null : pos + 3, url: page?.url ?? null, adsBy: ["bigchainauto.test", "cityautogroup.test"], top3: null },
+      ];
+      const searches = keywords.reduce((a, x) => a + x.searches, 0);
+      return { name, status, matched: status === "aligned" ? true : status === "weak" ? false : null, page, keywords, searches,
+        valueUsd: Math.round(keywords.reduce((a, x) => a + x.searches * x.cpcUsd * 0.1, 0)), bestPosition: pos };
+    });
+    await c.query(`INSERT INTO keyword_plans (id, org_id, built_on, data_source, data, created_at) VALUES ($1,$2,$3,'live',$4, now() - interval '2 days')`, [
+      randomUUID(), o, dayStr(-2),
+      { topics, totalSearches: topics.reduce((a, t) => a + t.searches, 0), totalValueUsd: topics.reduce((a, t) => a + t.valueUsd, 0) },
+    ]);
+    // A short to-do list.
+    const todo = [
+      ["review_request", "Ask every customer this week for a Google review", "The top 3 in Google Maps have far more reviews.", "Hi [first name], thanks for choosing us! Would you leave a quick Google review? [your Google review link]"],
+      ["gbp_post", "Post an update to your Google Business Profile this week", "Weekly posts keep the profile active.", "Before/after of the week: [photo + one line about the job]. Call us for a free estimate."],
+      ...topics.filter((t) => t.status !== "aligned").slice(0, 2).map((t) => ["new_page", `Add a "${t.name}" page`, `About ${t.searches} searches a month and no page made for them.`, `Page address: /${t.name.replaceAll(" ", "-")}-${city}\nMain heading: ${t.name} in ${city}`]),
+    ];
+    for (const [kind, title, why, content] of todo) {
+      await c.query(
+        `INSERT INTO action_items (id, org_id, kind, title, why, content, status, source, created_at)
+         VALUES ($1,$2,$3::action_kind,$4,$5,$6,'open','rules', now() - interval '5 days')`,
+        [randomUUID(), o, kind, title, why, content.replaceAll("\\n", "\n")],
+      );
+    }
+  }
+
   await c.query("COMMIT");
   console.log("Demo data: seeded.");
 } catch (err) {

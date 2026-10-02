@@ -5,10 +5,14 @@ import { prospects, sessions, users } from "@/server/db/schema";
 import { withUser } from "@/server/db/tenant";
 import { randomToken, sha256Hex } from "@/server/security/hash";
 
-// Demo mode (previews only): one-click entry as a fictional shop owner or
-// as TorqueRank staff, on data seeded by scripts/seed-demo.mjs.
+// Demo mode (previews only): one-click entry as a fictional shop owner, a
+// marketing agency, or TorqueRank staff, on data seeded by scripts/seed-demo.mjs.
 
-export const DEMO_EMAILS = { owner: "demo-owner@torquerank.test", admin: "demo-admin@torquerank.test" } as const;
+export const DEMO_EMAILS = {
+  owner: "demo-owner@torquerank.test",
+  admin: "demo-admin@torquerank.test",
+  agency: "demo-agency@torquerank.test",
+} as const;
 export type DemoRole = keyof typeof DEMO_EMAILS;
 
 /** Never true on production, whatever DEMO_MODE says. */

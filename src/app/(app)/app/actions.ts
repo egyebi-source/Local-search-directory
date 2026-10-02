@@ -12,6 +12,7 @@ import { withOrg } from "@/server/db/tenant";
 import { currentOrganization, requireUser, setCurrentOrgCookie, withCurrentOrg } from "@/server/org/current";
 import {
   changeRole,
+  canInvite,
   createInvite,
   ForbiddenError,
   removeMember,
@@ -19,6 +20,7 @@ import {
   TeamRuleError,
 } from "@/server/org/team";
 import { consumeRateLimit, RATE_LIMITS } from "@/server/security/rate-limit";
+import { createConnectCode, endAgencyForOrg } from "@/server/agency/agency";
 import { appBaseUrl } from "@/server/url";
 
 export type ActionState = { error?: string; ok?: string };
@@ -61,7 +63,7 @@ export async function inviteAction(_prev: ActionState, formData: FormData): Prom
   let created: { inviteId: string; token: string; orgName: string; orgId: string; userId: string };
   try {
     created = await withCurrentOrg(async (tx, ctx) => {
-      if (ctx.role !== "owner") throw new ForbiddenError();
+      if (!canInvite(ctx)) throw new ForbiddenError();
       if (!(await consumeRateLimit(RATE_LIMITS.invitePerOrg, ctx.orgId))) {
         throw new InviteRateLimitedError();
       }
@@ -123,4 +125,33 @@ export async function changeRoleAction(formData: FormData): Promise<void> {
   const userId = idSchema.parse(formData.get("userId"));
   const role = roleSchema.parse(formData.get("role"));
   await runTeamAction((tx, ctx) => changeRole(tx, ctx, userId, role));
+}
+
+// --- Agency access (PRD Module 11) ------------------------------------------
+
+export type ConnectCodeState = { code?: string; error?: string };
+
+/** The owner creates a one-time code to give their agency. Shown once; only the hash is stored. */
+export async function createConnectCodeAction(): Promise<ConnectCodeState> {
+  try {
+    const code = await withCurrentOrg(async (tx, ctx) => {
+      if (ctx.role !== "owner") throw new ForbiddenError();
+      if (!(await consumeRateLimit(RATE_LIMITS.connectCodePerOrg, ctx.orgId))) return null;
+      return createConnectCode(tx, ctx);
+    });
+    if (!code) return { error: "You've made several codes today. Try again tomorrow." };
+    return { code };
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { error: t.team.ownersOnly };
+    throw err;
+  }
+}
+
+export async function endAgencyAction(): Promise<void> {
+  await withCurrentOrg(async (tx, ctx) => {
+    if (ctx.role !== "owner") return;
+    await endAgencyForOrg(tx, ctx);
+  });
+  revalidatePath("/app", "layout");
+  redirect("/app/team");
 }

@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { getDb } from "@/server/db/client";
 import { organizations } from "@/server/db/schema";
-import type { Tx } from "@/server/db/tenant";
+import type { OrgRole, Tx } from "@/server/db/tenant";
 import { serverEnv } from "@/server/env";
 import { appBaseUrl } from "@/server/url";
 import { getPricing } from "./pricing";
@@ -50,7 +50,7 @@ const MIN_TRIAL_SECONDS = 48 * 60 * 60; // Stripe needs a trial end at least 2 d
  */
 export async function startCheckout(
   tx: Tx,
-  ctx: { orgId: string; role: "owner" | "member" },
+  ctx: { orgId: string; role: OrgRole },
   user: { email: string },
   plan: Plan,
   gateway: BillingGateway,
@@ -95,7 +95,7 @@ export async function startCheckout(
 }
 
 /** Stripe's page to change card, switch plan or cancel. Owners with a subscription only. */
-export async function startPortal(tx: Tx, ctx: { orgId: string; role: "owner" | "member" }, gateway: BillingGateway): Promise<string> {
+export async function startPortal(tx: Tx, ctx: { orgId: string; role: OrgRole }, gateway: BillingGateway): Promise<string> {
   if (ctx.role !== "owner") throw new BillingForbiddenError();
   const [org] = await tx.select({ customer: organizations.stripeCustomerId }).from(organizations).where(eq(organizations.id, ctx.orgId));
   if (!org?.customer) throw new BillingForbiddenError();

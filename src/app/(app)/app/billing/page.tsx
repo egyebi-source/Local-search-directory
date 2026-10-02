@@ -4,15 +4,16 @@ import { accessState } from "@/server/billing/access";
 import { getPricing, monthsFree, usd } from "@/server/billing/pricing";
 import { billingEnabled } from "@/server/billing/stripe";
 import { organizations } from "@/server/db/schema";
-import { withCurrentOrg } from "@/server/org/current";
+import { orgAccess, withCurrentOrg } from "@/server/org/current";
 
 const fmt = (d: Date) => d.toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" });
 
 export default async function BillingPage({ searchParams }: PageProps<"/app/billing">) {
   const { done } = await searchParams;
-  const { org, role } = await withCurrentOrg(async (tx, ctx) => ({
+  const { org, role, effective } = await withCurrentOrg(async (tx, ctx) => ({
     org: (await tx.select().from(organizations).where(eq(organizations.id, ctx.orgId)))[0],
     role: ctx.role,
+    effective: await orgAccess(tx, ctx.orgId),
   }));
   const p = await getPricing();
   const state = accessState(org);
@@ -33,7 +34,9 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
         <p className="mt-1 text-slate-700 dark:text-slate-300">
           {subscribed
             ? `${org.billingInterval === "year" ? "Annual" : "Monthly"} plan${org.currentPeriodEnd ? `, renews ${fmt(org.currentPeriodEnd)}` : ""}.`
-            : state.kind === "trialing"
+            : effective.kind === "agency"
+              ? `Covered by ${effective.agencyName}, the agency that manages this account. You don't need your own plan while they do.`
+              : state.kind === "trialing"
               ? `Free trial: ${state.daysLeft} day${state.daysLeft === 1 ? "" : "s"} left (ends ${fmt(org.trialEndsAt)}).`
               : "No active plan."}
         </p>
@@ -42,7 +45,9 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
         ) : null}
       </section>
 
-      {role !== "owner" ? (
+      {role === "agency" ? (
+        <p className="text-slate-600 dark:text-slate-400">Your agency plan covers this location. Only the business owner can manage its own billing.</p>
+      ) : role !== "owner" ? (
         <p className="text-slate-600 dark:text-slate-400">Only an owner of this business can manage billing.</p>
       ) : !billingEnabled() ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">

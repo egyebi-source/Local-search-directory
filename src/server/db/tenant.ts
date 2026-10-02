@@ -13,7 +13,9 @@ type OrgInsert = typeof organizations.$inferInsert;
 
 export type Db = ReturnType<typeof getDb>;
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-export type OrgContext = { orgId: string; userId: string; role: MembershipRole };
+/** "agency": not a member, but on the team of the agency that manages this location. */
+export type OrgRole = MembershipRole | "agency";
+export type OrgContext = { orgId: string; userId: string; role: OrgRole };
 
 /** The user is not a member of the requested organization. Show a 404. */
 export class NotMemberError extends Error {
@@ -47,7 +49,7 @@ export async function withUser<T>(userId: string, fn: (tx: Tx) => Promise<T>): P
 
 /**
  * Run `fn` inside one organization after verifying that `userId` belongs to
- * it. Throws NotMemberError otherwise, so callers can respond with a 404.
+ * it, or manages it through an agency. Throws NotMemberError otherwise, so callers can respond with a 404.
  */
 export async function withOrg<T>(
   userId: string,
@@ -62,9 +64,16 @@ export async function withOrg<T>(
       .select({ role: memberships.role })
       .from(memberships)
       .where(and(eq(memberships.orgId, oid), eq(memberships.userId, uid)));
-    if (!membership) throw new NotMemberError();
+    let role: OrgRole | null = membership?.role ?? null;
+    if (!role) {
+      // Agency access is decided by the database: an active link, the user on
+      // that agency's team, and the agency's plan in good standing.
+      const r = await tx.execute<{ agency: string | null }>(sql`SELECT agency_can_open(${oid}) AS agency`);
+      if (r.rows[0]?.agency) role = "agency";
+    }
+    if (!role) throw new NotMemberError();
     await setSetting(tx, "app.org_id", oid);
-    return fn(tx, { orgId: oid, userId: uid, role: membership.role });
+    return fn(tx, { orgId: oid, userId: uid, role });
   });
 }
 

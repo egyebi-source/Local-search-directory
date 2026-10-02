@@ -532,3 +532,79 @@ export const keywordPlans = pgTable(
   },
   (t) => [index("keyword_plans_org_idx").on(t.orgId, t.createdAt)],
 );
+
+// --- Agencies and networks (PRD Module 11) ----------------------------------
+// One login over many businesses. Each location stays its own organization
+// with its own data and RLS; an agency reaches a location only through an
+// active agency_locations link, which the location's owner can end at any
+// time. All writes go through the agency_* database functions.
+
+export const agencyRole = pgEnum("agency_role", ["owner", "staff"]);
+export type AgencyRole = (typeof agencyRole.enumValues)[number];
+
+export const agencies = pgTable("agencies", {
+  id: id(),
+  name: text("name").notNull(),
+  // The agency pays per location; until it does, a 14-day trial covers its locations.
+  planStatus: planStatus("plan_status").notNull().default("trialing"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now() + interval '14 days'`),
+  createdAt: createdAt(),
+});
+
+export const agencyMembers = pgTable(
+  "agency_members",
+  {
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: agencyRole("role").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.agencyId, t.userId] }), index("agency_members_user_idx").on(t.userId)],
+);
+
+export const agencyLocations = pgTable(
+  "agency_locations",
+  {
+    id: id(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // true: the agency set this location up; false: the owner connected an existing account.
+    createdByAgency: boolean("created_by_agency").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    endedBy: text("ended_by").$type<"location" | "agency">(),
+  },
+  (t) => [
+    index("agency_locations_agency_idx").on(t.agencyId),
+    // A location belongs to at most one agency at a time.
+    uniqueIndex("agency_locations_one_active_idx").on(t.orgId).where(sql`ended_at IS NULL`),
+  ],
+);
+
+// Codes a location owner gives an agency to connect an existing account.
+// Only the SHA-256 hash is stored; the code is shown once to the owner.
+export const agencyConnectCodes = pgTable(
+  "agency_connect_codes",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("agency_connect_codes_hash_idx").on(t.codeHash), index("agency_connect_codes_org_idx").on(t.orgId)],
+);
