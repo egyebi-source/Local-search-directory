@@ -82,19 +82,19 @@ Gemini turns the combined data into a short, prioritized action checklist with r
 - FR-2.2 Every user belongs to at least one organization. Roles: `owner`, `member`. A new organization is created by completing the gate questions (§2.1 step 3), all validated with Zod.
 - FR-2.3 Owners can invite by email (expiring, single-use invite tokens stored hashed).
 
-### Module 3 — Google data connection (OAuth)
+### Module 3 — Google data connection (OAuth) — built
 - FR-3.1 Separate from login. Uses its own OAuth flow with `access_type=offline`, `include_granted_scopes=true`, `prompt=consent`, a `state` parameter, and PKCE.
 - FR-3.2 Scopes: exactly those in §6.3. The consent request asks for GSC and GA4 together, but the app must handle a user granting only one (Google's granular consent).
 - FR-3.3 After consent, list the user's GSC sites (`sites.list`) and GA4 properties (Analytics Admin API `accountSummaries.list`); user selects one of each (or skips one).
-- FR-3.4 Refresh token encrypted and stored per §8.2. Access tokens are kept in memory only.
+- FR-3.4 Refresh token encrypted and stored per §8.2 (bound to its org as GCM additional data). Access tokens are kept in memory only. Connecting and changing properties: owners only. The state + PKCE verifier live in a sealed, 10-minute, HttpOnly cookie scoped to /api/google.
 - FR-3.5 On `invalid_grant` or revoked access: mark connection `needs_reauth`, stop syncing, email the owner, show a "Reconnect" banner.
 - FR-3.6 **Disconnect** button: revoke the token at Google's revoke endpoint, delete the encrypted token, and (user's choice) delete or keep cached metrics.
 
-### Module 4 — Data sync
+### Module 4 — Data sync — built (runs inside the daily rank-checks cron; DB lease instead of Redis)
 - FR-4.1 Vercel Cron calls `/api/cron/sync` daily. The endpoint rejects any request without `Authorization: Bearer ${CRON_SECRET}`.
-- FR-4.2 The cron job fans out one job per connected org (batches small enough to finish within the function time limit). Use a Redis lock so two runs never sync the same org at once.
-- FR-4.3 GSC: pull the last 16 months on first sync, then a rolling last 10 days daily (GSC data arrives with a 2–3 day delay, so recent days are re-fetched and upserted).
-- FR-4.4 GA4: sessions, users, traffic source, and **key events** (GA4's current name for conversions), daily.
+- FR-4.2 The cron job claims a few connected orgs at a time with `google_claim_orgs_for_sync` (15-minute lease, SKIP LOCKED) so two runs never sync the same org at once. The first sync also runs right after the owner picks a property.
+- FR-4.3 GSC: pull the last 16 months of daily totals on first sync (per-search detail: 28 days, kept 120 days), then a rolling last 10 days daily (GSC data arrives with a 2–3 day delay, so recent days are re-fetched and upserted).
+- FR-4.4 GA4: sessions, users, default channel group, and **key events** (GA4's current name for conversions), daily; 90 days on first sync.
 - FR-4.5 DataForSEO competitor data refreshed weekly per org.
 - FR-4.6 Retries with exponential backoff on 429/5xx; respect Google quotas. Every run writes a `sync_runs` row (status, counts, error code — never token values).
 - FR-4.7 Dashboard always shows "Data last updated: …" and flags stale data (> 48h).

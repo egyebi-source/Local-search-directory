@@ -42,6 +42,16 @@ const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_[A-Za-z0-9]+$/, "must be a Stripe webhook secret")),
   STRIPE_TAX: z.enum(["on", "off"]).default("off"),
 
+  // Google data connection (Search Console + GA4). Read-only scopes only (PRD §6.3).
+  GOOGLE_DATA_CLIENT_ID: optional(z.string().regex(/^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/, "must be a Google OAuth client id")),
+  GOOGLE_DATA_CLIENT_SECRET: optional(z.string().min(10)),
+  GOOGLE_DATA_REDIRECT_URI: optional(z.url().refine((u) => u.startsWith("https://") || u.startsWith("http://localhost"), "must be https")),
+  // 32 random bytes, base64. Encrypts Google refresh tokens (PRD §8.2).
+  TOKEN_ENCRYPTION_KEY: optional(
+    z.string().refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 random bytes, base64-encoded"),
+  ),
+  TOKEN_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),
+
   // Background jobs. Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
   CRON_SECRET: optional(z.string().min(32, "must be at least 32 characters")),
 });

@@ -9,7 +9,10 @@ export type AuditAction =
   | "invite.accepted"
   | "member.removed"
   | "member.role_changed"
-  | "agency.code_created";
+  | "agency.code_created"
+  | "google.connected"
+  | "google.properties_chosen"
+  | "google.disconnected";
 
 export async function audit(
   tx: Tx,

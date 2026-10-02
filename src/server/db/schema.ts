@@ -608,3 +608,118 @@ export const agencyConnectCodes = pgTable(
   },
   (t) => [uniqueIndex("agency_connect_codes_hash_idx").on(t.codeHash), index("agency_connect_codes_org_idx").on(t.orgId)],
 );
+
+// --- Google data: Search Console + GA4 (PRD Modules 3-5) --------------------
+// One connection per organization. The refresh token is stored only as
+// AES-256-GCM ciphertext (src/server/google/tokens.ts); access tokens are
+// never stored. Metrics are the org's own, behind row-level security.
+
+export const googleConnectionStatus = pgEnum("google_connection_status", ["active", "needs_reauth", "revoked"]);
+export const googlePropertyType = pgEnum("google_property_type", ["gsc", "ga4"]);
+
+export const googleConnections = pgTable(
+  "google_connections",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    connectedByUserId: uuid("connected_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    grantedScopes: text("granted_scopes").array().notNull(),
+    refreshTokenCiphertext: text("refresh_token_ciphertext").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenAuthTag: text("token_auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull(),
+    status: googleConnectionStatus("status").notNull().default("active"),
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    // Lease so two sync runs never work on the same org at once.
+    syncStartedAt: timestamp("sync_started_at", { withTimezone: true }),
+    // A short code ("invalid_grant", "quota"), never a token or Google's raw message.
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("google_connections_org_idx").on(t.orgId)],
+);
+
+export const linkedProperties = pgTable(
+  "linked_properties",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => googleConnections.id, { onDelete: "cascade" }),
+    type: googlePropertyType("type").notNull(),
+    // GSC: "sc-domain:example.com" or "https://example.com/"; GA4: "properties/123456".
+    externalId: text("external_id").notNull(),
+    displayName: text("display_name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("linked_properties_org_type_idx").on(t.orgId, t.type)],
+);
+
+export const gscDaily = pgTable(
+  "gsc_daily",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    clicks: integer("clicks").notNull(),
+    impressions: integer("impressions").notNull(),
+    ctr: real("ctr").notNull(),
+    position: real("position").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.orgId, t.date] })],
+);
+
+export const gscQueryDaily = pgTable(
+  "gsc_query_daily",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    query: text("query").notNull(),
+    clicks: integer("clicks").notNull(),
+    impressions: integer("impressions").notNull(),
+    position: real("position").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.orgId, t.date, t.query] })],
+);
+
+export const ga4Daily = pgTable(
+  "ga4_daily",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    // GA4's default channel group: "Organic Search", "Direct", "Paid Search", ...
+    channel: text("channel").notNull(),
+    sessions: integer("sessions").notNull(),
+    users: integer("users").notNull(),
+    keyEvents: real("key_events").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.orgId, t.date, t.channel] })],
+);
+
+export const syncRuns = pgTable(
+  "sync_runs",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    source: googlePropertyType("source").notNull(),
+    status: text("status").$type<"ok" | "error">().notNull(),
+    rowsUpserted: integer("rows_upserted").notNull().default(0),
+    errorCode: text("error_code"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sync_runs_org_idx").on(t.orgId, t.startedAt)],
+);

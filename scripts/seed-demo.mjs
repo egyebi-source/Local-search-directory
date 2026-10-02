@@ -319,6 +319,72 @@ try {
       ],
     );
   }
+  // Google data for the demo shop, as if the owner had connected Search
+  // Console and GA4. The "token" is random bytes: it can't reach Google.
+  const conn = randomUUID();
+  await c.query(
+    `INSERT INTO google_connections (id, org_id, connected_by_user_id, granted_scopes, refresh_token_ciphertext, token_iv, token_auth_tag, key_version, status, last_synced_at, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'active', now() - interval '6 hours', now() - interval '58 days')`,
+    [conn, org, owner, ["https://www.googleapis.com/auth/webmasters.readonly", "https://www.googleapis.com/auth/analytics.readonly"],
+     randomBytes(48).toString("base64"), randomBytes(12).toString("base64"), randomBytes(16).toString("base64")],
+  );
+  await c.query(`INSERT INTO linked_properties (id, org_id, connection_id, type, external_id, display_name) VALUES ($1,$2,$3,'gsc','sc-domain:${DOMAIN}',$4), ($5,$2,$3,'ga4','properties/100000001','Acme Collision website')`, [
+    randomUUID(), org, conn, DOMAIN, randomUUID(),
+  ]);
+  // Search Console reports run 2 days behind. Flat for a year, then the
+  // last 60 days climb with the changes above.
+  const gsc = [];
+  for (let back = 487; back >= 2; back--) {
+    const i = 60 - back; // day index on the 60-day story (negative = before)
+    const w = i <= 0 ? 0 : Math.min(1, i / 58);
+    const weekday = [0.75, 1.1, 1.08, 1.05, 1.02, 0.98, 0.8][new Date(Date.now() - back * 86_400_000).getUTCDay()];
+    const season = 1 + 0.12 * Math.sin(back / 58);
+    const impressions = Math.round((190 + 260 * w) * weekday * season + wobble(back, 1) * 9);
+    const clicks = Math.max(0, Math.round(impressions * (0.031 + 0.018 * w) + wobble(back, 2)));
+    gsc.push({ date: dayStr(-back), clicks, impressions, ctr: impressions ? clicks / impressions : 0, position: Math.round((17.8 - 8.6 * w + wobble(back, 3) * 0.4) * 10) / 10 });
+  }
+  await c.query(
+    `INSERT INTO gsc_daily (org_id, date, clicks, impressions, ctr, position)
+     SELECT $1, r.date::date, r.clicks, r.impressions, r.ctr, r.position FROM jsonb_to_recordset($2::jsonb) AS r(date text, clicks int, impressions int, ctr real, position real)`,
+    [org, JSON.stringify(gsc)],
+  );
+  // What people typed, last 28 reported days: [query, clicks/day, impressions/day, position].
+  const QUERIES = [
+    ["acme collision", 2.1, 2.6, 1.1], ["collision repair ottawa", 1.2, 31, 6.2], ["collision repair near me", 0.9, 48, 8.7],
+    ["auto body shop kanata", 0.8, 9, 3.4], ["bumper repair ottawa", 0.4, 22, 10.6], ["auto body shop ottawa", 0.5, 26, 7.9],
+    ["acme collision ottawa reviews", 0.3, 0.6, 1.4], ["dent repair ottawa", 0.2, 14, 9.8], ["car paint shop ottawa", 0.1, 11, 12.4],
+    ["rust repair ottawa", 0.2, 5, 8.6], ["auto glass ottawa", 0, 7, 31.5], ["insurance claim body shop ottawa", 0.1, 3, 5.1],
+  ];
+  const qrows = [];
+  for (let back = 29; back >= 2; back--) {
+    for (const [k, [query, cl, im, pos]] of QUERIES.entries()) {
+      const impressions = Math.max(0, Math.round(im + wobble(back, k) * Math.max(1, im / 8)));
+      const clicks = Math.min(impressions, Math.max(0, Math.round(cl + wobble(back, k + 5) * 0.8)));
+      qrows.push({ date: dayStr(-back), query, clicks, impressions, position: Math.max(1, Math.round((pos + wobble(back, k) * 0.5) * 10) / 10) });
+    }
+  }
+  await c.query(
+    `INSERT INTO gsc_query_daily (org_id, date, query, clicks, impressions, position)
+     SELECT $1, r.date::date, r.query, r.clicks, r.impressions, r.position FROM jsonb_to_recordset($2::jsonb) AS r(date text, query text, clicks int, impressions int, position real)`,
+    [org, JSON.stringify(qrows)],
+  );
+  // GA4 visits per channel, last 90 days (GA4 is a day behind).
+  const ga4 = [];
+  for (let back = 90; back >= 1; back--) {
+    const i = 60 - back;
+    const w = i <= 0 ? 0 : Math.min(1, i / 58);
+    const weekday = [0.7, 1.1, 1.08, 1.05, 1.02, 0.98, 0.85][new Date(Date.now() - back * 86_400_000).getUTCDay()];
+    for (const [k, [channel, base, grow, conv]] of [["Organic Search", 9, 9, 0.07], ["Direct", 6, 1, 0.05], ["Referral", 2, 0.5, 0.03], ["Organic Social", 1, 0.3, 0.01]].entries()) {
+      const sessions = Math.max(0, Math.round((base + grow * w) * weekday + wobble(back, k)));
+      ga4.push({ date: dayStr(-back), channel, sessions, users: Math.round(sessions * 0.86), key_events: Math.round(sessions * conv * (1 + w)) });
+    }
+  }
+  await c.query(
+    `INSERT INTO ga4_daily (org_id, date, channel, sessions, users, key_events)
+     SELECT $1, r.date::date, r.channel, r.sessions, r.users, r.key_events FROM jsonb_to_recordset($2::jsonb) AS r(date text, channel text, sessions int, users int, key_events real)`,
+    [org, JSON.stringify(ga4)],
+  );
+
   // A demo agency managing six fictional shops (PRD Module 11). Acme
   // Collision is left out on purpose: its owner can try "Give an agency
   // access" and the agency can connect it with the code.

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { loadDashboard, type Dashboard } from "@/server/dashboard/dashboard";
 import { withCurrentOrg } from "@/server/org/current";
+import { loadGoogleData } from "@/server/google/metrics";
+import { GooglePanel } from "./google-panel";
 import { SnapshotButton } from "./snapshot-button";
 
 // The SEO dashboard: every panel has its numbers and a plain-English note
@@ -254,7 +256,11 @@ function NextSteps({ d }: { d: Dashboard }) {
 }
 
 export default async function DashboardPage() {
-  const d = await withCurrentOrg((tx, ctx) => loadDashboard(tx, ctx.orgId));
+  const { d, g, role } = await withCurrentOrg(async (tx, ctx) => ({
+    d: await loadDashboard(tx, ctx.orgId),
+    g: await loadGoogleData(tx, ctx.orgId),
+    role: ctx.role,
+  }));
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -273,6 +279,7 @@ export default async function DashboardPage() {
         </p>
       ) : null}
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+        <GooglePanel g={g} canConnect={role === "owner"} />
         <Overview d={d} />
         <Maps d={d} />
         <Position d={d} />
@@ -282,7 +289,7 @@ export default async function DashboardPage() {
         <NextSteps d={d} />
       </div>
       <p className="text-xs text-slate-500">
-        Visitor and value figures are estimates from public search data, not your own analytics. Connect Google Analytics (coming soon) for exact numbers.
+        &ldquo;Your Google data&rdquo; comes from your own Google accounts. The other visitor and value figures are estimates from public search data.
       </p>
     </div>
   );

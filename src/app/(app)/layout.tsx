@@ -38,6 +38,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/app/actions">{t.app.nav.actions}</Link>
             <Link href="/app/progress">{t.app.nav.progress}</Link>
             <Link href="/app/assessment">{t.app.nav.assessment}</Link>
+            <Link href="/app/google">Google data</Link>
             <Link href="/app/team">{t.app.nav.team}</Link>
             <Link href="/app/billing">{t.app.nav.billing}</Link>
           </nav>
