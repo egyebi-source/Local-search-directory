@@ -10,6 +10,10 @@ import { assertUnderCap, recordSpend } from "@/server/security/spend";
 /** Messages are written by us and never contain credentials, so they are safe to log. */
 export class DataForSeoError extends Error {
   override name = "DataForSeoError";
+  /** DataForSEO's task-level status code, when the failure came from one task. */
+  constructor(message: string, readonly taskCode?: number) {
+    super(message);
+  }
 }
 
 const envelope = z.object({
@@ -60,12 +64,32 @@ export const httpTransport: DataForSeoTransport = async (path, body) => {
   return res.json();
 };
 
+/**
+ * 40101 "Internal SE Server Error": Google itself errored on this search.
+ * DataForSEO has already retried; it's usually temporary, so we try again.
+ */
+export const TRANSIENT_TASK_CODES = new Set([40101]);
+export const TASK_RETRIES = 2;
+
 /** Run one live task and return its first result object. */
 export async function liveTask(
   transport: DataForSeoTransport,
   path: string,
   task: Record<string, unknown>,
+  retryDelayMs = 1500,
 ): Promise<unknown> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await liveTaskOnce(transport, path, task);
+    } catch (err) {
+      const transient = err instanceof DataForSeoError && err.taskCode !== undefined && TRANSIENT_TASK_CODES.has(err.taskCode);
+      if (!transient || attempt >= TASK_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, retryDelayMs * (attempt + 1)));
+    }
+  }
+}
+
+async function liveTaskOnce(transport: DataForSeoTransport, path: string, task: Record<string, unknown>): Promise<unknown> {
   await assertUnderCap("dataforseo");
   const parsed = envelope.safeParse(await transport(path, [task]));
   if (!parsed.success) {
@@ -82,7 +106,7 @@ export async function liveTask(
   if (!first) throw new DataForSeoError(`DataForSEO returned no task (${path})`);
   if (first.status_code !== 20000) {
     // e.g. 40501 invalid field, 40200 payment required, 40210 insufficient funds.
-    throw new DataForSeoError(`DataForSEO task failed (${first.status_code} on ${path})`);
+    throw new DataForSeoError(`DataForSEO task failed (${first.status_code} on ${path})`, first.status_code);
   }
   return first.result?.[0] ?? null;
 }

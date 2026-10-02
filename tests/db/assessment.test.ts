@@ -140,6 +140,37 @@ describe.runIf(hasDb)("assessment engine", () => {
     expect(JSON.stringify(r.insights)).not.toContain("Capital Collision");
   });
 
+  it("when Google's results can't be fetched, ads and position are 'not checked', never 'none'", async () => {
+    const dfs = fakeDataForSeo();
+    const transport = async (path: string, body: unknown) => {
+      if (path.includes("serp/google/organic")) throw new Error("boom");
+      return dfs.transport(path, body);
+    };
+    const gemini = fakeGemini([JSON.stringify(GOOD_INSIGHTS)]);
+    const r = await runAssessment(answers, { dataforseo: transport, gemini: gemini.transport, dataSource: "live" });
+    expect(r.metrics.googleChecked).toBe(false);
+    const text = r.insights.map((i) => `${i.title} ${i.detail}`).join(" ");
+    expect(text).not.toMatch(/No one is advertising|not in the top 20/i);
+    expect(text).toMatch(/couldn't check Google/i);
+    // The AI would read "0 advertisers" as a fact, so it isn't asked.
+    expect(gemini.requests).toHaveLength(0);
+  });
+
+  it("retries Google's temporary 40101 error and then succeeds", async () => {
+    const dfs = fakeDataForSeo();
+    let serpCalls = 0;
+    const transport = async (path: string, body: unknown) => {
+      if (path.includes("serp/google/organic") && serpCalls++ === 0) {
+        return { status_code: 20000, tasks: [{ status_code: 40101, status_message: "Internal SE Server Error.", cost: 0.002, result: null }] };
+      }
+      return dfs.transport(path, body);
+    };
+    const r = await runAssessment(answers, { dataforseo: transport, gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport, dataSource: "live" });
+    expect(serpCalls).toBe(2);
+    expect(r.metrics.googleChecked).toBe(true);
+    expect(r.metrics.advertisers).toBeGreaterThan(0);
+  });
+
   it("a failed Maps lookup still produces an assessment", async () => {
     const dfs = fakeDataForSeo();
     const transport = async (path: string, body: unknown) => {

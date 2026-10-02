@@ -91,12 +91,20 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
       yourPosition: ownHit?.position ?? null,
       rescueTargets: rescueTargets.length,
       rescueMonthlySearches: rescueTargets.reduce((s, k) => s + k.monthlySearches, 0),
+      googleChecked: serp.ok,
     },
     rescueTargets,
     topKeywords,
     competitors,
     ...(maps.ok ? { local: localVisibility(keyword, maps.value, serp.value.organic, own) } : {}),
   };
+}
+
+/** The AI sees the numbers only (the googleChecked flag decides whether it runs at all). */
+function numbersOnly(m: AssessmentResult["metrics"]): Omit<AssessmentResult["metrics"], "googleChecked"> {
+  const rest = { ...m };
+  delete rest.googleChecked;
+  return rest;
 }
 
 export async function runAssessment(answers: Answers, deps: EngineDeps): Promise<AssessmentResult> {
@@ -127,7 +135,9 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
     ...(others.length ? { otherMarkets: others.map(strip) } : {}),
   };
 
-  const ai = await aiInsights(
+  // If Google's results are missing, the AI would read "0 advertisers" as a
+  // fact; the rule-based findings say plainly that it wasn't checked.
+  const ai = main.metrics.googleChecked === false ? null : await aiInsights(
     deps.gemini,
     {
       business: {
@@ -137,8 +147,8 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
         adSpend: answers.adSpendRange,
         countries: answers.countries,
       },
-      metrics: main.metrics,
-      otherMarkets: others.map((m) => ({ country: m.country, metrics: m.metrics })),
+      metrics: numbersOnly(main.metrics),
+      otherMarkets: others.map((m) => ({ country: m.country, metrics: numbersOnly(m.metrics) })),
       topKeywords: main.topKeywords,
       rescueTargets: main.rescueTargets.map((k) => ({
         keyword: k.keyword,

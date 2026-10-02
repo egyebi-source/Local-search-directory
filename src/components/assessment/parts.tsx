@@ -14,11 +14,14 @@ export function SampleDataBanner({ source }: { source: AssessmentResult["dataSou
   );
 }
 
+const positionLabel = (m: AssessmentResult["metrics"]) =>
+  m.googleChecked === false ? a.metrics.notChecked : m.yourPosition === null ? a.metrics.notRanked : `#${m.yourPosition}`;
+
 export function MetricTiles({ m }: { m: AssessmentResult["metrics"] }) {
   const tiles = [
-    { label: a.metrics.advertisers, value: String(m.advertisers) },
+    { label: a.metrics.advertisers, value: m.googleChecked === false ? a.metrics.notChecked : String(m.advertisers) },
     { label: a.metrics.topCpc, value: usd(m.topCpcUsd) },
-    { label: a.metrics.yourPosition, value: m.yourPosition === null ? a.metrics.notRanked : `#${m.yourPosition}` },
+    { label: a.metrics.yourPosition, value: positionLabel(m) },
     { label: a.metrics.rescue, value: String(m.rescueTargets) },
   ];
   return (
@@ -54,9 +57,9 @@ export function LocalTiles({ l, m }: { l: LocalSummary; m: AssessmentResult["met
     },
     {
       label: a.metrics.yourPosition,
-      value: m.yourPosition === null ? a.metrics.notRanked : `#${m.yourPosition}`,
+      value: positionLabel(m),
       note: null,
-      bad: m.yourPosition === null || m.yourPosition > 3,
+      bad: m.googleChecked !== false && (m.yourPosition === null || m.yourPosition > 3),
     },
     { label: L.directories, value: String(l.directoriesInTop10), note: L.directoriesNote, bad: false },
   ];

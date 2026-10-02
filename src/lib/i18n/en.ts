@@ -103,6 +103,7 @@ export const en = {
       topCpc: "Highest estimated cost per click",
       yourPosition: "Your position on Google",
       notRanked: "Not in top 20",
+      notChecked: "Couldn't check",
       rescue: "Searches where you're on page 2–3",
     },
     local: {

@@ -22,6 +22,8 @@ export type AssessmentResult = {
     yourPosition: number | null;
     rescueTargets: number;
     rescueMonthlySearches: number;
+    /** False when Google's results couldn't be fetched: ads and position are unknown, not zero. Absent on older results (= checked). */
+    googleChecked?: boolean;
   };
   insights: Insight[];
   insightsSource: "ai" | "rules";
@@ -213,6 +215,15 @@ export function ruleInsights(r: Omit<AssessmentResult, "insights" | "insightsSou
           : "That's the demand in your area for your main services. Each search you show up for is a chance at a call or quote.",
   };
   const next = { title: "Your quickest next step", detail: goalLine[goal] ?? goalLine.calls };
+  if (m.googleChecked === false) {
+    // Never present missing data as a finding.
+    const unchecked = {
+      title: "We couldn't check Google's results this time",
+      detail: "Google returned a temporary error, so who's advertising and where you rank are unknown for now. Your dashboard checks again automatically.",
+    };
+    if (!r.local) return [unchecked, rescue, demand, next];
+    return [...mapInsights(r.local, r.category), unchecked, rescue, next];
+  }
   if (!r.local) return [ads, organic, rescue, demand, next];
   return [...mapInsights(r.local, r.category), organic, rescue, next];
 }

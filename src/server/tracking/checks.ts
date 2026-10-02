@@ -57,7 +57,8 @@ export async function seedFromAssessment(tx: Tx, orgId: string, r: AssessmentRes
     dataSource: r.dataSource,
     values: {
       mapRank: r.local?.yourRank ?? null,
-      organicRank: r.metrics.yourPosition,
+      // Unknown (Google errored) is not "not ranked": leave it out of the before.
+      organicRank: r.metrics.googleChecked === false ? null : r.metrics.yourPosition,
       rating: r.local?.you?.rating ?? null,
       reviews: r.local?.you?.reviews ?? null,
       leaderAvgRating: r.local?.leaderAvgRating ?? null,
