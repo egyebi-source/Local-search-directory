@@ -6,6 +6,7 @@ import { httpTransport } from "@/server/dataforseo/client";
 import { withOrg } from "@/server/db/tenant";
 import { serverEnv } from "@/server/env";
 import { withCurrentOrg } from "@/server/org/current";
+import { dailyCheckLimit } from "@/server/agency/agency";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { SpendCapReachedError } from "@/server/security/spend";
 
@@ -14,8 +15,8 @@ export type SnapshotState = { error?: string };
 /** Build the dashboard now instead of waiting for the weekly job (2 per day per business). */
 export async function snapshotNowAction(): Promise<SnapshotState> {
   const ctx = await withCurrentOrg(async (_tx, ctx) => ctx);
-  if (!(await consumeRateLimit({ name: "snapshot:org", limit: 2, windowSeconds: 24 * 60 * 60 }, ctx.orgId))) {
-    return { error: "Your dashboard was just refreshed. Try again tomorrow." };
+  if (!(await consumeRateLimit({ name: "snapshot:org", limit: await dailyCheckLimit(ctx.userId, 2), windowSeconds: 24 * 60 * 60 }, ctx.orgId))) {
+    return { error: "You've used today's dashboard refreshes. Try again tomorrow." };
   }
   try {
     await snapshotOrg(ctx.orgId, (fn) => withOrg(ctx.userId, ctx.orgId, fn), {

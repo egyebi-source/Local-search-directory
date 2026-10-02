@@ -35,6 +35,16 @@ export async function listMyAgencies(userId: string): Promise<MyAgency[]> {
   return rows.map((r) => ({ id: r.id, name: r.name, role: r.role, access: accessState(r) }));
 }
 
+/**
+ * Agencies prepare many shops (including ones they're pitching), so their
+ * staff get more paid data checks per location per day than an owner does.
+ * The daily spend cap still bounds the total.
+ */
+export const AGENCY_DAILY_CHECKS = 5;
+export async function dailyCheckLimit(userId: string, base: number): Promise<number> {
+  return (await listMyAgencies(userId)).length ? Math.max(base, AGENCY_DAILY_CHECKS) : base;
+}
+
 export const agencyNameSchema = z.string().trim().min(2).max(80);
 
 export async function createAgency(userId: string, name: string): Promise<string> {

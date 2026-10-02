@@ -7,6 +7,7 @@ import { withOrg } from "@/server/db/tenant";
 import { serverEnv } from "@/server/env";
 import { addTopicToActions, buildAndSavePlan, loadPlan } from "@/server/keywords/plan";
 import { withCurrentOrg } from "@/server/org/current";
+import { dailyCheckLimit } from "@/server/agency/agency";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { SpendCapReachedError } from "@/server/security/spend";
 
@@ -14,8 +15,8 @@ export type PlanState = { error?: string; ok?: string };
 
 export async function buildPlanAction(): Promise<PlanState> {
   const ctx = await withCurrentOrg(async (_tx, ctx) => ctx);
-  if (!(await consumeRateLimit({ name: "keyword-plan:org", limit: 2, windowSeconds: 24 * 60 * 60 }, ctx.orgId))) {
-    return { error: "Your plan was just rebuilt. Try again tomorrow." };
+  if (!(await consumeRateLimit({ name: "keyword-plan:org", limit: await dailyCheckLimit(ctx.userId, 2), windowSeconds: 24 * 60 * 60 }, ctx.orgId))) {
+    return { error: "You've used today's plan rebuilds. Try again tomorrow." };
   }
   try {
     const plan = await buildAndSavePlan(ctx.orgId, (fn) => withOrg(ctx.userId, ctx.orgId, fn), {

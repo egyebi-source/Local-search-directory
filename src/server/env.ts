@@ -35,7 +35,7 @@ const serverEnvSchema = z.object({
   GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   DAILY_SPEND_CAP_DATAFORSEO_CENTS: z.coerce.number().int().min(0).default(200),
   DAILY_SPEND_CAP_GEMINI_CENTS: z.coerce.number().int().min(0).default(100),
-  ASSESSMENTS_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(3),
+  ASSESSMENTS_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(5),
   ASSESSMENTS_GLOBAL_PER_DAY: z.coerce.number().int().min(1).default(50),
   TURNSTILE_SECRET_KEY: optional(z.string().min(1)),
 

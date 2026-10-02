@@ -21,6 +21,7 @@ import { organizations, trackedSearches, type Country } from "@/server/db/schema
 import { NATIONWIDE } from "@/server/onboarding/answers";
 import { serverEnv } from "@/server/env";
 import { withCurrentOrg } from "@/server/org/current";
+import { dailyCheckLimit } from "@/server/agency/agency";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { SpendCapReachedError } from "@/server/security/spend";
 
@@ -67,6 +68,7 @@ export async function runCheckAction(): Promise<CompetitorState> {
     }
     return {
       orgId: ctx.orgId,
+      userId: ctx.userId,
       domain: org?.domain ?? null,
       country: (org?.country ?? "CA") as Country,
       mapsSearch,
@@ -75,8 +77,8 @@ export async function runCheckAction(): Promise<CompetitorState> {
   });
   if (!setup.domain) return { error: "Add your website first (Team → business details)." };
   // Each check costs a few cents of search data per site.
-  if (!(await consumeRateLimit({ name: "competitor-check:org", limit: 3, windowSeconds: 24 * 60 * 60 }, setup.orgId))) {
-    return { error: "You've run 3 checks today. Search data changes slowly; try again tomorrow." };
+  if (!(await consumeRateLimit({ name: "competitor-check:org", limit: await dailyCheckLimit(setup.userId, 3), windowSeconds: 24 * 60 * 60 }, setup.orgId))) {
+    return { error: "You've used today's checks for this business. Search data changes slowly; try again tomorrow." };
   }
   try {
     const report = await buildReport(httpTransport, setup.domain, setup.rivals.map((r) => r.domain), setup.country, setup.mapsSearch);
