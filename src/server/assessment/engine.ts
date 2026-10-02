@@ -9,6 +9,8 @@ import type { Answers } from "@/server/onboarding/answers";
 import type { Country } from "@/server/db/schema";
 import {
   keywordCandidates,
+  MIN_MONTHLY_SEARCHES,
+  phraseCandidates,
   localVisibility,
   mapInsights,
   opportunityScore,
@@ -127,14 +129,27 @@ function numbersOnly(m: AssessmentResult["metrics"]): Omit<AssessmentResult["met
 async function chooseKeyword(answers: Answers, deps: EngineDeps): Promise<{ keyword: string; keywordNote?: string }> {
   const typed = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
   const candidates = keywordCandidates(answers.category, answers.serviceArea, answers.reach);
-  if (candidates.length < 2) return { keyword: typed };
-  const volumes = await settle(phraseVolumes(deps.dataforseo, candidates, answers.countries[0]), new Map<string, number>());
+  const own = phraseCandidates(answers.phrases ?? [], answers.serviceArea, answers.reach);
+  if (candidates.length < 2 && own.length === 0) return { keyword: typed };
+  const volumes = await settle(phraseVolumes(deps.dataforseo, [...own, ...candidates], answers.countries[0]), new Map<string, number>());
+  // The customer's own phrases come first: the most searched one people really type.
+  const ownBest = own
+    .map((p) => ({ p, v: volumes.value.get(p) ?? 0 }))
+    .filter((x) => x.v >= MIN_MONTHLY_SEARCHES)
+    .sort((a, b) => b.v - a.v)[0];
+  if (ownBest) {
+    return {
+      keyword: ownBest.p,
+      keywordNote: `Using your phrase "${ownBest.p}", searched about ${ownBest.v.toLocaleString("en-US")} times a month.`,
+    };
+  }
   const picked = pickKeyword(candidates, volumes.value);
-  if (picked.keyword === candidates[0]) return { keyword: picked.keyword };
+  const ownNote = own.length ? `Your phrases are searched too rarely to measure, so we looked for the closest common search. ` : "";
+  if (picked.keyword === candidates[0]) return ownNote ? { keyword: picked.keyword, keywordNote: ownNote.trim() } : { keyword: picked.keyword };
   const typedSearches = volumes.value.get(candidates[0]) ?? 0;
   return {
     keyword: picked.keyword,
-    keywordNote: `Few people search "${candidates[0]}" (${typedSearches ? `about ${typedSearches} a month` : "too few to measure"}), so we used "${picked.keyword}"${picked.searches ? `, searched about ${picked.searches.toLocaleString("en-US")} times a month` : ""}.`,
+    keywordNote: `${ownNote}Few people search "${candidates[0]}" (${typedSearches ? `about ${typedSearches} a month` : "too few to measure"}), so we used "${picked.keyword}"${picked.searches ? `, searched about ${picked.searches.toLocaleString("en-US")} times a month` : ""}.`,
   };
 }
 

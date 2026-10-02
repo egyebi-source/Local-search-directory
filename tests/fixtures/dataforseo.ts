@@ -91,6 +91,15 @@ export const ideas = envelope(0.012, {
 });
 
 /** Fake transport that answers by endpoint and records every request. */
+export const competitorsDomain = envelope(0.01, {
+  target: "acmecollision.ca",
+  items: [
+    { domain: "www.rivalautobody.ca", intersections: 42, full_domain_metrics: { organic: { etv: 900 } } },
+    { domain: "yelp.ca", intersections: 300, full_domain_metrics: { organic: { etv: 99999 } } },
+    { domain: "fastfixcollision.com", intersections: 17, full_domain_metrics: { organic: { etv: 210 } } },
+  ],
+});
+
 export function fakeDataForSeo() {
   const calls: { path: string; body: unknown }[] = [];
   const transport = async (path: string, body: unknown) => {
@@ -102,6 +111,7 @@ export function fakeDataForSeo() {
     if (path.includes("keyword_ideas")) return ideas;
     if (path.includes("instant_pages")) return instantPage;
     if (path.includes("keyword_suggestions")) return suggestions;
+    if (path.includes("competitors_domain")) return competitorsDomain;
     throw new Error(`unexpected path ${path}`);
   };
   return { transport, calls };

@@ -312,3 +312,33 @@ export async function phraseVolumes(t: DataForSeoTransport, phrases: string[], c
   });
   return new Map(parseItems(raw, phraseItem).map((i) => [i.keyword.toLowerCase(), i.keyword_info?.search_volume ?? 0]));
 }
+
+export type DomainCompetitor = { domain: string; sharedSearches: number; trafficEst: number };
+
+const competitorItem = z.object({
+  domain: z.string(),
+  intersections: num,
+  full_domain_metrics: z.object({ organic: z.object({ etv: num }).nullable().optional() }).nullable().optional(),
+});
+
+/** Big general sites that compete with everyone; never useful as "your competitor". */
+const GENERIC = /(^|\.)(google|youtube|facebook|instagram|linkedin|twitter|x|tiktok|reddit|pinterest|wikipedia|amazon|ebay|yelp|yellowpages|bbb|indeed|glassdoor|quora|apple|microsoft|kijiji|craigslist|mapquest|tripadvisor|nextdoor|angi|homeadvisor|thumbtack|houzz)\.[a-z.]+$/;
+
+/** Sites that rank for many of the same searches as `domain` (Google's view of your competitors). */
+export async function domainCompetitors(t: DataForSeoTransport, domain: string, country: Country, limit = 12): Promise<DomainCompetitor[]> {
+  const raw = await liveTask(t, "dataforseo_labs/google/competitors_domain/live", {
+    target: domain,
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+    limit: limit + 10,
+    exclude_top_domains: true,
+  });
+  return parseItems(raw, competitorItem)
+    .map((i) => ({
+      domain: i.domain.toLowerCase().replace(/^www\./, ""),
+      sharedSearches: i.intersections ?? 0,
+      trafficEst: Math.round(i.full_domain_metrics?.organic?.etv ?? 0),
+    }))
+    .filter((c) => c.domain !== domain && !GENERIC.test(c.domain))
+    .slice(0, limit);
+}

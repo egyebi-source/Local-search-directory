@@ -134,6 +134,13 @@
       "when": 1790911738950,
       "tag": "0018_google_data",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790923444589,
+      "tag": "0019_competitors",
+      "breakpoints": true
     }
   ]
 }

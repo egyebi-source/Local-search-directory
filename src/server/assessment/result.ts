@@ -189,6 +189,20 @@ export function keywordCandidates(category: string, serviceArea: string, reach: 
   return [...new Set(out)].slice(0, 8);
 }
 
+/**
+ * The customer's own phrases, as typed and (for a local business) with the
+ * city added, unless they already name a place or say "near me".
+ */
+export function phraseCandidates(phrases: string[], serviceArea: string, reach: "local" | "national" = "local"): string[] {
+  const city = reach === "national" ? "" : cityFrom(serviceArea);
+  const out: string[] = [];
+  for (const p of phrases) {
+    out.push(p);
+    if (city && !p.includes(city) && !/\bnear me\b/.test(p)) out.push(`${p} ${city}`);
+  }
+  return [...new Set(out)].slice(0, 6);
+}
+
 /** Enough searches to say anything useful about ads and rankings. */
 export const MIN_MONTHLY_SEARCHES = 30;
 

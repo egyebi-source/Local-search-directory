@@ -35,6 +35,15 @@ const fields = {
     .transform((g) => [...new Set(g)]),
   adSpendRange: z.enum(adSpendRange.enumValues),
   websiteManager: z.enum(websiteManager.enumValues),
+  // Optional: what a customer would type into Google (one per line, up to 3).
+  phrases: z
+    .preprocess(
+      (v) => (typeof v === "string" ? v.split(/[\n,;]/) : Array.isArray(v) ? v : []),
+      z.array(z.string()).transform((list) =>
+        [...new Set(list.map((p) => p.trim().toLowerCase().replace(/\s+/g, " ")).filter((p) => p.length >= 3 && p.length <= 80 && /^[\p{L}\p{N} &'.-]+$/u.test(p)))].slice(0, 3),
+      ),
+    )
+    .default([]),
 };
 
 type Base = { reach: "local" | "national"; serviceArea: string; countries: string[] };

@@ -15,7 +15,7 @@ const ID = /^[A-Za-z0-9_-]{43}$/;
 export function cacheKeyFor(a: Answers, dataSource: "sandbox" | "live"): string {
   return sha256Hex(
     // v2: results before the "searched phrase" choice and the googleChecked flag are never reused.
-    ["v2", dataSource, a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
+    ["v2", dataSource, a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(","), (a.phrases ?? []).join(",")].join("|"),
   );
 }
 

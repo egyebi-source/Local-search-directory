@@ -36,6 +36,9 @@ export const en = {
     serviceAreaHint: "City or region, e.g. Ottawa, ON",
     category: "Business type",
     categoryHint: "e.g. Collision repair, Plumbing, Metal fabrication",
+    phrases: "What would a customer type into Google to find you? (optional)",
+    phrasesHint: "One per line, up to 3. e.g.\ncollision repair near me\nauto body shop group",
+    phrasesNote: "We check how often each is searched and use the ones people really type.",
     goal: {
       label: "What do you want most from your website?",
       calls: "More phone calls",

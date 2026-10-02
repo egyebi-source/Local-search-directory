@@ -723,3 +723,36 @@ export const syncRuns = pgTable(
   },
   (t) => [index("sync_runs_org_idx").on(t.orgId, t.startedAt)],
 );
+
+// --- Competitors: who else wins the searches, and with which words ----------
+
+export const competitors = pgTable(
+  "competitors",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    domain: text("domain").notNull(),
+    // "you": added by the business; "suggested": found by Google overlap and accepted.
+    source: text("source").$type<"you" | "suggested">().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("competitors_org_domain_idx").on(t.orgId, t.domain)],
+);
+
+// Each competitor check, kept as history (append-only).
+export const competitorReports = pgTable(
+  "competitor_reports",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    takenOn: date("taken_on").notNull(),
+    dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("competitor_reports_org_idx").on(t.orgId, t.createdAt)],
+);

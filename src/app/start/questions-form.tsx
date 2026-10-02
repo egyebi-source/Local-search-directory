@@ -76,7 +76,23 @@ export function QuestionsForm({
     },
     {
       title: q.category,
-      body: <Input aria-label={o.category} name="category" required minLength={2} maxLength={100} placeholder={o.categoryHint} />,
+      body: (
+        <div className="flex flex-col gap-4">
+          <Input aria-label={o.category} name="category" required minLength={2} maxLength={100} placeholder={o.categoryHint} />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="phrases">{o.phrases}</Label>
+            <textarea
+              id="phrases"
+              name="phrases"
+              rows={3}
+              maxLength={260}
+              placeholder={o.phrasesHint}
+              className="w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600"
+            />
+            <p className="text-xs text-slate-500">{o.phrasesNote}</p>
+          </div>
+        </div>
+      ),
     },
     {
       title: q.serviceArea,
