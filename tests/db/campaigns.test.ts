@@ -9,6 +9,7 @@ import {
   optOut,
   reissueLinks,
 } from "@/server/campaigns/campaigns";
+import { analyzeProspect, emailDraft, loadProspect, markContacted, newClaimLink, pitchOpener } from "@/server/campaigns/outreach";
 import { campaigns, prospects } from "@/server/db/schema";
 import { createOrganization, withUser } from "@/server/db/tenant";
 import { fakeDataForSeo } from "../fixtures/dataforseo";
@@ -113,5 +114,51 @@ describe.runIf(hasDb)("claim campaigns", () => {
       /permission denied/,
     );
     await expectDbError(withUser(admin.id, (tx) => tx.execute(sql`UPDATE prospects SET report = '{}'::jsonb`)), /permission denied/);
+  });
+});
+
+describe.runIf(hasDb)("selling to a campaign's businesses", () => {
+  let admin: { id: string };
+  let customer: { id: string };
+  beforeAll(async () => {
+    admin = await createUser("outreach-admin");
+    customer = await createUser("outreach-customer");
+    await asOwner((c) => c.query("INSERT INTO platform_admins (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [admin.id]));
+  });
+  beforeEach(() => asOwner((c) => c.query("TRUNCATE campaigns, prospects, prospect_suppressions, api_spend_daily CASCADE")));
+
+  it("the deeper check finds contacts and top fixes; the owner's report shows the fixes but never the contacts", async () => {
+    const d = fakeDataForSeo();
+    await createCampaign(admin.id, { category: "Collision repair", city: "Ottawa", country: "CA" }, { dataforseo: d.transport, dataSource: "live" });
+    const [acme] = await withUser(admin.id, (tx) => tx.select().from(prospects).where(sql`domain = 'acmecollision.ca'`));
+    const p = await analyzeProspect(admin.id, acme.id, {
+      dataforseo: d.transport,
+      findEmail: async () => ({ email: "info@acmecollision.ca", source: "https://acmecollision.ca/contact" }),
+    });
+    expect(p?.email).toBe("info@acmecollision.ca");
+    expect(p?.analysis?.fixes.length).toBeGreaterThan(0);
+    expect(p?.analysis?.fixes.some((f) => /reviews?/i.test(f.title))).toBe(true); // 85 vs 400 reviews
+
+    const link = await newClaimLink(admin.id, acme.id);
+    const view = await lookupClaim(tokenOf(link!));
+    expect(view?.fixes).toEqual(p?.analysis?.fixes);
+    expect(JSON.stringify(view)).not.toContain("info@acmecollision.ca");
+
+    const draft = emailDraft(p!, link!);
+    expect(draft.body).toContain(link!);
+    expect(draft.body).toContain("[Your mailing address]"); // CASL: sender must add it
+    expect(draft.body).toMatch(/reply "remove"/);
+    expect(pitchOpener(p!)).toContain("#6 on Google Maps");
+
+    await markContacted(admin.id, acme.id, "phone");
+    expect((await loadProspect(admin.id, acme.id))?.contactChannel).toBe("phone");
+  });
+
+  it("customers can't read or change any of it", async () => {
+    await createCampaign(admin.id, { category: "Collision repair", city: "Ottawa", country: "CA" }, { dataforseo: fakeDataForSeo().transport, dataSource: "live" });
+    expect(await withUser(customer.id, (tx) => tx.select().from(prospects))).toEqual([]);
+    const r = await withUser(customer.id, (tx) => tx.update(prospects).set({ email: "x@y.z" }).returning({ id: prospects.id }));
+    expect(r).toEqual([]); // row-level security: nothing visible, nothing changed
+    expect(await loadProspect(customer.id, "00000000-0000-4000-8000-000000000000")).toBeNull();
   });
 });

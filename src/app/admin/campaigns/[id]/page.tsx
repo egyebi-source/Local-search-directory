@@ -33,7 +33,12 @@ export default async function CampaignPage({ params }: PageProps<"/admin/campaig
       </header>
 
       <section className="flex flex-col gap-2 rounded-xl bg-gold-50 p-5 text-gold-950 ring-1 ring-gold-200">
-        <h2 className="font-semibold">Get the claim links</h2>
+        <h2 className="font-semibold">Work this list</h2>
+        <p className="text-sm">
+          Click a business to open its profile: run the deeper check (website + phone + published email + its top 3 fixes), get a call
+          opener, and write an email with its private report link. Shops at #4–10 in Maps are the easiest wins and are marked below.
+        </p>
+        <h3 className="mt-2 font-semibold">Or get every link at once</h3>
         <p className="text-sm">
           Downloads a spreadsheet (CSV) with each business and its private link, ready for letters, postcards (turn links into QR codes) or a
           member mailing. For security we don&apos;t store links: each download creates fresh ones and earlier links stop working. Links last 60 days.
@@ -54,7 +59,7 @@ export default async function CampaignPage({ params }: PageProps<"/admin/campaig
           <caption className="sr-only">Businesses in this campaign</caption>
           <thead className="bg-slate-50 text-slate-600">
             <tr>
-              {["Maps spot", "Business", "Rating", "Reviews", "Google position", "Status"].map((h) => (
+              {["Maps spot", "Business", "Rating", "Reviews", "Google position", "Contact", "Status"].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium">
                   {h}
                 </th>
@@ -68,13 +73,24 @@ export default async function CampaignPage({ params }: PageProps<"/admin/campaig
                 <tr key={p.id}>
                   <td className="px-3 py-2 tabular-nums">{rank(r.mapRank)}</td>
                   <td className="px-3 py-2">
-                    <p className="font-medium">{p.businessName}</p>
+                    <Link href={`/admin/campaigns/${id.data}/p/${p.id}`} className="font-medium text-rose-700 underline">
+                      {p.businessName}
+                    </Link>
                     <p className="text-xs text-slate-500">{p.domain}</p>
+                    {r.mapRank !== null && r.mapRank >= 4 && r.mapRank <= 10 && p.status !== "claimed" ? (
+                      <p className="mt-0.5 text-xs font-medium text-gold-700">Good prospect: close to the top 3</p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2 tabular-nums">{r.rating === null ? "—" : `${r.rating.toFixed(1)}★`}</td>
                   <td className="px-3 py-2 tabular-nums">{r.reviews?.toLocaleString("en-US") ?? "—"}</td>
                   <td className="px-3 py-2 tabular-nums">{rank(r.organicRank)}</td>
                   <td className="px-3 py-2 text-xs">
+                    {p.phone ? <p>{p.phone}</p> : null}
+                    {p.email ? <p className="break-all">{p.email}</p> : null}
+                    {!p.phone && !p.email ? <span className="text-slate-400">{p.analyzedAt ? "None found" : "Not checked"}</span> : null}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {p.contactedAt ? <p className="text-slate-700">Contacted ({p.contactChannel})</p> : null}
                     {p.status === "claimed" ? (
                       <span className="font-semibold text-green-700">Claimed</span>
                     ) : p.status === "opened" ? (

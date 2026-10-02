@@ -68,6 +68,22 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
                   <Stat label="Your Google position" value={rank(r.organicRank)} bad={r.organicRank === null || r.organicRank > 3} />
                   <Stat label="Directory sites in Google's top 10" value={String(r.directoriesInTop10)} note="Sites like Yelp taking spots your website could hold" />
                 </div>
+                {claim.fixes.length ? (
+                  <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200">
+                    <h2 className="text-lg font-semibold">What we&apos;d fix first</h2>
+                    <ol className="flex flex-col gap-3">
+                      {claim.fixes.map((f, i) => (
+                        <li key={f.title} className="flex gap-3">
+                          <span className="font-display text-xl italic text-gold-600">{i + 1}</span>
+                          <span>
+                            <span className="block font-medium">{f.title}</span>
+                            <span className="block text-sm text-slate-600">{f.why}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ) : null}
                 <section className="flex flex-col items-center gap-4 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-gold-50 px-6 py-10 text-center text-slate-900 ring-1 ring-rose-200">
                   <h2 className="max-w-xl text-xl font-semibold">
                     {claim.status === "claimed" ? "This report has been claimed." : "Claim your free dashboard to see who's ahead of you and what to fix first"}

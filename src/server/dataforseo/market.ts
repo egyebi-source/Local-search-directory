@@ -127,6 +127,8 @@ export type MapListing = {
   rating: number | null;
   reviews: number | null;
   category: string | null;
+  /** The phone number on the Google listing, when it has one. */
+  phone?: string | null;
 };
 
 const mapsItem = z.object({
@@ -135,6 +137,7 @@ const mapsItem = z.object({
   title: z.string(),
   domain: str,
   category: str,
+  phone: str,
   rating: z.object({ value: num, votes_count: num }).nullable().optional(),
 });
 
@@ -155,8 +158,16 @@ export async function mapsRanking(t: DataForSeoTransport, keyword: string, count
       rating: i.rating?.value ?? null,
       reviews: i.rating?.votes_count ?? null,
       category: i.category ? i.category.slice(0, 80) : null,
+      phone: cleanPhone(i.phone),
     }))
     .sort((a, b) => a.rank - b.rank);
+}
+
+/** "+1 905-457-1684" style; anything that isn't a plausible phone number is dropped. */
+export function cleanPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const p = raw.trim().slice(0, 40);
+  return /^\+?[\d\s().-]{7,}$/.test(p) && p.replace(/\D/g, "").length >= 7 ? p : null;
 }
 
 export type BusinessListing = {
@@ -166,6 +177,7 @@ export type BusinessListing = {
   category: string | null;
   rating: number | null;
   reviews: number | null;
+  phone: string | null;
 };
 
 const listingItem = mapsItem.extend({ address: str });
@@ -189,6 +201,7 @@ export async function findBusiness(t: DataForSeoTransport, name: string, city: s
       category: i.category ? i.category.slice(0, 80) : null,
       rating: i.rating?.value ?? null,
       reviews: i.rating?.votes_count ?? null,
+      phone: cleanPhone(i.phone),
     }));
 }
 

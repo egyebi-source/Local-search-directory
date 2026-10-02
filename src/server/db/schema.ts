@@ -412,6 +412,17 @@ export const prospects = pgTable(
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     claimedOrgId: uuid("claimed_org_id").references(() => organizations.id, { onDelete: "set null" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // Public business contact details: the phone on its Google listing, and
+    // an email the business itself publishes on its website (with the page).
+    phone: text("phone"),
+    email: text("email"),
+    emailSource: text("email_source"),
+    // Deeper check (website scan + top fixes), run on request per prospect.
+    analysis: jsonb("analysis").$type<Record<string, unknown>>(),
+    analyzedAt: timestamp("analyzed_at", { withTimezone: true }),
+    // Outreach log: when and how staff last contacted the business.
+    contactedAt: timestamp("contacted_at", { withTimezone: true }),
+    contactChannel: text("contact_channel"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("prospects_token_hash_idx").on(t.tokenHash), index("prospects_campaign_idx").on(t.campaignId)],

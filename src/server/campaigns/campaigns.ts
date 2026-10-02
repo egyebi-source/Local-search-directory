@@ -91,6 +91,7 @@ export async function createCampaign(
         report,
         tokenHash: sha256Hex(token),
         expiresAt: expiry(),
+        phone: l.phone ?? null,
       });
       links.push({ businessName: l.name, domain, mapRank: v.yourRank, url: claimUrl(token) });
     }
@@ -147,6 +148,11 @@ export async function campaignProspects(adminId: string, campaignId: string) {
         openedAt: prospects.openedAt,
         claimedAt: prospects.claimedAt,
         expiresAt: prospects.expiresAt,
+        phone: prospects.phone,
+        email: prospects.email,
+        analyzedAt: prospects.analyzedAt,
+        contactedAt: prospects.contactedAt,
+        contactChannel: prospects.contactChannel,
       })
       .from(prospects)
       .where(and(eq(prospects.campaignId, campaignId)))
@@ -165,7 +171,11 @@ export type ClaimView = {
   category: string;
   country: Country;
   status: "new" | "opened" | "claimed";
+  /** Top fixes from the deeper check, if staff ran one. Plain text. */
+  fixes: { title: string; why: string }[];
 };
+
+const fixesSchema = z.array(z.object({ title: z.string().max(140), why: z.string().max(500) })).max(3);
 
 const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const isClaimToken = (t: unknown): t is string => tokenSchema.safeParse(t).success;
@@ -174,11 +184,21 @@ export const isClaimToken = (t: unknown): t is string => tokenSchema.safeParse(t
 export async function lookupClaim(token: string): Promise<ClaimView | null> {
   if (!isClaimToken(token)) return null;
   const r = await getDb().execute<{
-    business_name: string; domain: string; report: ProspectReport; keyword: string; city: string; category: string; country: Country; status: ClaimView["status"];
+    business_name: string; domain: string; report: ProspectReport; keyword: string; city: string; category: string; country: Country; status: ClaimView["status"]; fixes: unknown;
   }>(sql`SELECT * FROM claim_lookup(${sha256Hex(token)})`);
   const row = r.rows[0];
   return row
-    ? { businessName: row.business_name, domain: row.domain, report: row.report, keyword: row.keyword, city: row.city, category: row.category, country: row.country, status: row.status }
+    ? {
+        businessName: row.business_name,
+        domain: row.domain,
+        report: row.report,
+        keyword: row.keyword,
+        city: row.city,
+        category: row.category,
+        country: row.country,
+        status: row.status,
+        fixes: fixesSchema.safeParse(row.fixes ?? []).data ?? [],
+      }
     : null;
 }
 
