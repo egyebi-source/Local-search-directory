@@ -8,6 +8,7 @@ import {
   findGap,
   InvalidDomainError,
   isBrandSearch,
+  pickSuggestions,
   listCompetitors,
   loadReport,
   removeCompetitor,
@@ -39,6 +40,38 @@ describe("competitor gap rules", () => {
       ["collision repair ottawa", "other.ca", 1, null],
       ["bumper repair ottawa", "rival.ca", 5, 14],
     ]);
+  });
+});
+
+describe("suggested competitors", () => {
+  const listing = (rank: number, name: string, domain: string | null, rating: number | null = 4.6, reviews: number | null = 200) => ({
+    rank, name, domain, rating, reviews, category: "Auto body shop",
+  });
+  it("puts the shops above you in Google Maps first, skipping you, tracked rivals and directories", () => {
+    const s = pickSuggestions(
+      "acme.ca",
+      ["tracked.ca"],
+      {
+        keyword: "collision repair ottawa",
+        listings: [
+          listing(1, "Best Body", "www.BestBody.ca"),
+          listing(2, "Acme", "acme.ca"),
+          listing(3, "Tracked", "tracked.ca"),
+          listing(4, "No Site", null),
+          listing(5, "On Yelp", "yelp.ca"),
+          listing(6, "Quick Fix", "quickfix.ca", null, null),
+        ],
+      },
+      [{ domain: "bestbody.ca", sharedSearches: 40 }, { domain: "overlap.ca", sharedSearches: 12 }],
+    );
+    expect(s).toEqual([
+      { domain: "bestbody.ca", sharedSearches: 0, reason: 'Best Body: #1 in Google Maps for "collision repair ottawa", 4.6★ from 200 reviews' },
+      { domain: "quickfix.ca", sharedSearches: 0, reason: 'Quick Fix: #6 in Google Maps for "collision repair ottawa"' },
+      { domain: "overlap.ca", sharedSearches: 12 },
+    ]);
+  });
+  it("works without a map (nationwide business)", () => {
+    expect(pickSuggestions("acme.ca", [], null, [{ domain: "overlap.ca", sharedSearches: 12 }])).toEqual([{ domain: "overlap.ca", sharedSearches: 12 }]);
   });
 });
 
@@ -94,6 +127,12 @@ describe.runIf(hasDb)("competitors (database)", () => {
     await withOrg(owner.id, org, (tx) => saveReport(tx, org, "sandbox", r));
     const saved = await withOrg(owner.id, org, (tx) => loadReport(tx, org));
     expect(saved?.report.you.domain).toBe("acmecollision.ca");
+  });
+
+  it("suggests the businesses above you in Google Maps for your main search", async () => {
+    const r = await buildReport(fakeDataForSeo().transport, "acmecollision.ca", ["rivalautobody.ca"], "CA", "collision repair ottawa");
+    expect(r.suggestions.map((s) => s.domain)).toEqual(["capitalcollision.ca", "fastfixcollision.com"]);
+    expect(r.suggestions[0].reason).toContain('#2 in Google Maps for "collision repair ottawa"');
   });
 
   it("a failed lookup is shown as not checked, not as zero", async () => {

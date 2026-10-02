@@ -65,7 +65,7 @@ export default async function Home() {
             <a href="#pricing" className="hidden hover:text-rose-700 sm:inline">
               Pricing
             </a>
-            <Link href="/agency" className="hidden hover:text-rose-700 sm:inline">
+            <Link href="/for-agencies" className="hidden hover:text-rose-700 sm:inline">
               For agencies
             </Link>
             <Link href="/login" className="font-medium text-rose-700 hover:text-rose-800">
@@ -197,6 +197,25 @@ export default async function Home() {
         </ul>
       </section>
 
+      {/* Agencies */}
+      <section className="border-t border-slate-200">
+        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-20 md:grid-cols-[1fr_1.4fr] md:items-center">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wider text-rose-700">Agencies, buying groups and networks</p>
+            <h2 className="mt-3 text-3xl font-medium leading-tight">Look after many shops? One login covers them all.</h2>
+          </div>
+          <div>
+            <p className="text-lg leading-relaxed text-slate-700">
+              Add any shop by its website and city, including ones you&apos;re hoping to sign. See where it sits in Google Maps, the shops above
+              it, and what to fix first, then bring that to the meeting. Once they&apos;re on board, track every location from one screen.
+            </p>
+            <Link href="/for-agencies" className="mt-5 inline-block font-medium text-rose-700 underline hover:text-rose-800">
+              How it works for agencies
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="scroll-mt-6 border-t border-slate-200">
         <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-20 lg:grid-cols-[1fr_1.4fr]">
@@ -212,7 +231,7 @@ export default async function Home() {
             </p>
             <p className="mt-1 text-slate-700">
               Agencies: {usd(pricing.agencyCents)} per location.{" "}
-              <Link href="/help#agency-start" className="text-rose-700 underline">
+              <Link href="/for-agencies" className="text-rose-700 underline">
                 How that works
               </Link>
             </p>
@@ -244,6 +263,9 @@ export default async function Home() {
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-slate-600 sm:flex-row">
           <Logo />
           <nav className="flex gap-5">
+            <Link href="/for-agencies" className="hover:text-rose-700">
+              For agencies
+            </Link>
             <Link href="/help" className="hover:text-rose-700">
               Help
             </Link>

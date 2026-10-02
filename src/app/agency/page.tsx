@@ -297,7 +297,8 @@ export default async function AgencyPage({ searchParams }: PageProps<"/agency">)
         <Card className="flex flex-col gap-3">
           <CardTitle>Add a new client</CardTitle>
           <p className="text-sm text-slate-600">
-            For a business that isn&apos;t on TorqueRank yet. You set it up; invite the owner later from its Team page.{" "}
+            For a business that isn&apos;t on TorqueRank yet, including a shop you want to pitch. You set it up; invite the owner later from
+            its Team page. To prepare a pitch, open it and run a check on its Competitors page.{" "}
             <Link href="/help#add-client" className="underline">
               Guide
             </Link>

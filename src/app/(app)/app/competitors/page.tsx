@@ -75,7 +75,7 @@ export default async function CompetitorsPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-600">Add the websites of businesses you lose customers to. Not sure? Run a check and we&apos;ll suggest them.</p>
+          <p className="text-sm text-slate-600">Add the websites of businesses you lose customers to. Not sure? Run a check: we&apos;ll suggest the businesses that show up above you in Google Maps and on Google.</p>
         )}
         {list.length < MAX_COMPETITORS ? <AddCompetitorForm /> : null}
         {domain ? (
@@ -204,19 +204,29 @@ export default async function CompetitorsPage() {
           </Card>
 
           {r.suggestions.length ? (
-            <Card title="Google thinks these are also your competitors" note="They rank for many of the same searches you do. Track the ones that sell to the same customers.">
+            <Card
+              title="Suggested competitors"
+              note="Shops listed above you in Google Maps get the calls you're missing. Sites with searches in common compete with you on Google. Track the ones that sell to the same customers."
+            >
               <ul className="flex flex-col divide-y divide-slate-100">
                 {r.suggestions.map((s) => (
                   <li key={s.domain} className="flex items-center justify-between gap-3 py-2">
                     <span className="break-all">
-                      {s.domain} <span className="text-xs text-slate-500">{num(s.sharedSearches)} searches in common</span>
+                      {s.domain} <span className="block text-xs text-slate-500">{s.reason ?? `${num(s.sharedSearches)} searches in common`}</span>
                     </span>
                     {list.length < MAX_COMPETITORS ? <AddSuggestedButton domain={s.domain} /> : null}
                   </li>
                 ))}
               </ul>
             </Card>
-          ) : null}
+          ) : (
+            <Card title="Suggested competitors">
+              <p className="text-sm text-slate-600">
+                Google didn&apos;t show us any clear competitors for this website yet. That usually means the site is new or ranks for very
+                few searches. Add the businesses you know you compete with above, by website.
+              </p>
+            </Card>
+          )}
         </>
       ) : null}
     </div>

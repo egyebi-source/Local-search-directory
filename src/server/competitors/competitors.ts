@@ -3,7 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { normalizeDomain } from "@/lib/domain";
 import type { DataForSeoTransport } from "@/server/dataforseo/client";
-import { domainCompetitors, domainOverview, siteKeywords, type DomainOverview, type SiteKeyword } from "@/server/dataforseo/market";
+import { isDirectory } from "@/server/assessment/result";
+import { domainCompetitors, domainOverview, mapsRanking, siteKeywords, type DomainOverview, type MapListing, type SiteKeyword } from "@/server/dataforseo/market";
 import { actionItems, competitorReports, competitors, organizations, type Country } from "@/server/db/schema";
 import type { Tx } from "@/server/db/tenant";
 
@@ -67,11 +68,13 @@ export const reportSchema = z.object({
   you: site,
   rivals: z.array(site),
   gap: z.array(gapRow),
-  suggestions: z.array(z.object({ domain: z.string(), sharedSearches: z.number() })),
+  // Maps suggestions carry a reason ("#2 in Google Maps for ..."); overlap ones a count.
+  suggestions: z.array(z.object({ domain: z.string(), sharedSearches: z.number(), reason: z.string().optional() })),
 });
 export type CompetitorReport = z.infer<typeof reportSchema>;
 export type SiteSummary = z.infer<typeof site>;
 export type GapRow = z.infer<typeof gapRow>;
+export type Suggestion = CompetitorReport["suggestions"][number];
 
 /** "riverside-collision.ca" -> "riversidecollision": to drop searches for a rival's own name. */
 export function brandOf(domain: string): string {
@@ -125,23 +128,63 @@ export function findGap(yourDomain: string, yours: SiteKeyword[], rivals: { doma
 
 const settle = <T>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
 
+const hostOf = (d: string) => d.toLowerCase().replace(/^www\./, "");
+
+/**
+ * Competitors worth suggesting: first the businesses above you in Google Maps
+ * for your main local search (the shops customers actually call instead),
+ * then sites Google ranks for many of the same searches. Never your own
+ * site, one already tracked, or a directory like Yelp.
+ */
+export function pickSuggestions(
+  yourDomain: string,
+  taken: string[],
+  maps: { keyword: string; listings: MapListing[] } | null,
+  overlap: { domain: string; sharedSearches: number }[],
+  limit = 8,
+): Suggestion[] {
+  const seen = new Set([yourDomain, ...taken].map(hostOf));
+  const out: Suggestion[] = [];
+  const skip = (d: string) => seen.has(d) || d.endsWith(`.${yourDomain}`) || isDirectory(d);
+  for (const l of maps?.listings ?? []) {
+    if (!l.domain) continue;
+    const d = hostOf(l.domain);
+    if (skip(d)) continue;
+    seen.add(d);
+    const stars = l.rating !== null ? `, ${l.rating}★` : "";
+    const reviews = l.reviews !== null ? ` from ${l.reviews.toLocaleString("en-US")} reviews` : "";
+    out.push({ domain: d, sharedSearches: 0, reason: `${l.name}: #${l.rank} in Google Maps for "${maps!.keyword}"${stars}${reviews}` });
+    if (out.length >= 5) break;
+  }
+  for (const o of overlap) {
+    const d = hostOf(o.domain);
+    if (skip(d)) continue;
+    seen.add(d);
+    out.push({ domain: d, sharedSearches: o.sharedSearches });
+  }
+  return out.slice(0, limit);
+}
+
 export async function buildReport(
   t: DataForSeoTransport,
   yourDomain: string,
   rivalDomains: string[],
   country: Country,
+  // The business's main local search ("collision repair ottawa"); none for nationwide businesses.
+  mapsSearch: string | null = null,
 ): Promise<CompetitorReport> {
-  const [yourOverview, yourKeywords, suggested, ...rivalData] = await Promise.all([
+  const [yourOverview, yourKeywords, suggested, mapListings, ...rivalData] = await Promise.all([
     settle(domainOverview(t, yourDomain, country)),
     settle(siteKeywords(t, yourDomain, country, 300)),
     settle(domainCompetitors(t, yourDomain, country)),
+    mapsSearch ? settle(mapsRanking(t, mapsSearch, country)) : Promise.resolve(null),
     ...rivalDomains.map((d) => Promise.all([settle(domainOverview(t, d, country)), settle(siteKeywords(t, d, country, 150))])),
   ]);
   const rivals = rivalDomains.map((d, i) => {
     const [overview, keywords] = rivalData[i] as [DomainOverview | null, SiteKeyword[] | null];
     return { domain: d, overview, keywords };
   });
-  const taken = new Set([yourDomain, ...rivalDomains]);
+  const maps = mapsSearch && mapListings ? { keyword: mapsSearch, listings: mapListings as MapListing[] } : null;
   return {
     you: summarize(yourDomain, yourOverview as DomainOverview | null, yourKeywords as SiteKeyword[] | null),
     rivals: rivals.map((r) => summarize(r.domain, r.overview, r.keywords)),
@@ -150,10 +193,7 @@ export async function buildReport(
       (yourKeywords as SiteKeyword[] | null) ?? [],
       rivals.map((r) => ({ domain: r.domain, keywords: r.keywords ?? [] })),
     ),
-    suggestions: ((suggested as Awaited<ReturnType<typeof domainCompetitors>> | null) ?? [])
-      .filter((s) => !taken.has(s.domain))
-      .slice(0, 8)
-      .map((s) => ({ domain: s.domain, sharedSearches: s.sharedSearches })),
+    suggestions: pickSuggestions(yourDomain, rivalDomains, maps, (suggested as Awaited<ReturnType<typeof domainCompetitors>> | null) ?? []),
   };
 }
 
