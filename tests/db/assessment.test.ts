@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GeminiRequest, GeminiTransport } from "@/server/ai/gemini";
 import { runAssessment } from "@/server/assessment/engine";
-import { localVisibility, reviewsPerWeekToCatchUp, toTeaser } from "@/server/assessment/result";
+import { keywordCandidates, localVisibility, pickKeyword, reviewsPerWeekToCatchUp, toTeaser } from "@/server/assessment/result";
 import { AssessmentRateLimitedError, assess } from "@/server/assessment/service";
 import { getSnapshot } from "@/server/assessment/snapshots";
 import { answersSchema } from "@/server/onboarding/answers";
@@ -36,6 +36,25 @@ function fakeGemini(replies: string[]) {
 
 const resetDb = () =>
   asOwner((c) => c.query("TRUNCATE public_snapshots, api_spend_daily, rate_limits"));
+
+describe("choosing a phrase people actually search", () => {
+  it("tries the typed description, then shorter versions, with the city for a local business", () => {
+    expect(keywordCandidates("Collision repair buying group for independent shops", "Ottawa, ON", "local")).toEqual([
+      "collision repair buying group for independent shops ottawa",
+      "collision repair buying group for independent ottawa",
+      "collision repair buying group ottawa",
+      "collision repair buying ottawa",
+      "collision repair ottawa",
+    ]);
+    expect(keywordCandidates("Collision repair", "", "national")).toEqual(["collision repair"]);
+  });
+  it("picks the most specific phrase with real searches, else keeps the typed one", () => {
+    const c = ["a b c", "a b", "a"];
+    expect(pickKeyword(c, new Map([["a b c", 0], ["a b", 90], ["a", 5000]]))).toEqual({ keyword: "a b", searches: 90 });
+    expect(pickKeyword(c, new Map([["a", 10]]))).toEqual({ keyword: "a", searches: 10 });
+    expect(pickKeyword(c, new Map())).toEqual({ keyword: "a b c", searches: null });
+  });
+});
 
 describe.runIf(hasDb)("assessment engine", () => {
   beforeEach(resetDb);
@@ -171,6 +190,24 @@ describe.runIf(hasDb)("assessment engine", () => {
     expect(r.metrics.advertisers).toBeGreaterThan(0);
   });
 
+  it("uses a phrase people search instead of a long description, and says so", async () => {
+    const dfs = fakeDataForSeo();
+    const transport = async (path: string, body: unknown) => {
+      if (path.includes("keyword_overview")) {
+        return { status_code: 20000, tasks: [{ status_code: 20000, cost: 0.01, result: [{ items: [
+          { keyword: "collision repair buying group ottawa", keyword_info: { search_volume: 0 } },
+          { keyword: "collision repair ottawa", keyword_info: { search_volume: 880 } },
+        ] }] }] };
+      }
+      return dfs.transport(path, body);
+    };
+    const long = { ...answers, category: "Collision repair buying group for independent shops" };
+    const r = await runAssessment(long, { dataforseo: transport, gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport, dataSource: "live" });
+    expect(r.primaryKeyword).toBe("collision repair ottawa");
+    expect(r.keywordNote).toMatch(/Few people search .*so we used "collision repair ottawa", searched about 880 times a month/);
+    expect(toTeaser(r).keywordNote).toBe(r.keywordNote);
+  });
+
   it("a failed Maps lookup still produces an assessment", async () => {
     const dfs = fakeDataForSeo();
     const transport = async (path: string, body: unknown) => {
@@ -298,6 +335,21 @@ describe.runIf(hasDb)("assessment service: abuse and cost controls", () => {
     for (let i = 0; i < 3; i++) await assess(answers, "203.0.113.7", deps());
     await expect(assess(answers, "203.0.113.7", deps())).rejects.toBeInstanceOf(AssessmentRateLimitedError);
     await expect(assess(answers, "198.51.100.9", deps())).resolves.toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it("never reuses a result where Google couldn't be checked", async () => {
+    const dfs = fakeDataForSeo();
+    let failGoogle = true;
+    const transport = async (path: string, body: unknown) => {
+      if (failGoogle && path.includes("serp/google/organic")) throw new Error("boom");
+      return dfs.transport(path, body);
+    };
+    const deps = { dataforseo: transport, gemini: fakeGemini([JSON.stringify(GOOD_INSIGHTS)]).transport, dataSource: "live" as const };
+    const first = await getSnapshot(await assess(answers, "198.51.100.77", deps));
+    expect(first!.metrics.googleChecked).toBe(false);
+    failGoogle = false;
+    const second = await getSnapshot(await assess(answers, "198.51.100.77", deps));
+    expect(second!.metrics.googleChecked).toBe(true);
   });
 
   it("reuses a recent result instead of paying for the same lookup again", async () => {

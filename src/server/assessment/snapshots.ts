@@ -14,7 +14,8 @@ const ID = /^[A-Za-z0-9_-]{43}$/;
 /** Sample (sandbox) and real results never share a cache entry. */
 export function cacheKeyFor(a: Answers, dataSource: "sandbox" | "live"): string {
   return sha256Hex(
-    [dataSource, a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
+    // v2: results before the "searched phrase" choice and the googleChecked flag are never reused.
+    ["v2", dataSource, a.website, a.countries.join(","), primaryKeyword(a.category, a.serviceArea, a.reach), a.goals.join(",")].join("|"),
   );
 }
 
@@ -28,6 +29,8 @@ export async function findReusable(cacheKey: string): Promise<AssessmentResult |
         eq(publicSnapshots.cacheKey, cacheKey),
         gt(publicSnapshots.createdAt, sql`now() - make_interval(days => ${REUSE_DAYS})`),
         gt(publicSnapshots.expiresAt, sql`now()`),
+        // A result where Google couldn't be checked is not worth reusing: try again.
+        sql`(${publicSnapshots.resultJson} -> 'metrics' ->> 'googleChecked') IS DISTINCT FROM 'false'`,
       ),
     )
     .orderBy(desc(publicSnapshots.createdAt))

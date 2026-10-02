@@ -3,11 +3,22 @@ import { aiInsights } from "@/server/ai/insights";
 import type { GeminiTransport } from "@/server/ai/gemini";
 import { DataForSeoError, type DataForSeoTransport } from "@/server/dataforseo/client";
 import { z } from "zod";
-import { keywordValues, localSerp, mapsRanking, pageTwoKeywords } from "@/server/dataforseo/market";
+import { keywordValues, localSerp, mapsRanking, pageTwoKeywords, phraseVolumes } from "@/server/dataforseo/market";
 import { SpendCapReachedError } from "@/server/security/spend";
 import type { Answers } from "@/server/onboarding/answers";
 import type { Country } from "@/server/db/schema";
-import { localVisibility, mapInsights, toLocalSummary, opportunityScore, primaryKeyword, ruleInsights, type AssessmentResult, type Market } from "./result";
+import {
+  keywordCandidates,
+  localVisibility,
+  mapInsights,
+  opportunityScore,
+  pickKeyword,
+  primaryKeyword,
+  ruleInsights,
+  toLocalSummary,
+  type AssessmentResult,
+  type Market,
+} from "./result";
 
 /** `details` are our own credential-free failure reasons (see `settle`). */
 export class AssessmentUnavailableError extends Error {
@@ -107,8 +118,28 @@ function numbersOnly(m: AssessmentResult["metrics"]): Omit<AssessmentResult["met
   return rest;
 }
 
+/**
+ * People rarely search the exact business description typed in the form
+ * ("collision repair buying group for independent shops"). Check how often
+ * shorter versions are searched (one call) and use the most specific one
+ * people actually type, saying so on the report.
+ */
+async function chooseKeyword(answers: Answers, deps: EngineDeps): Promise<{ keyword: string; keywordNote?: string }> {
+  const typed = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
+  const candidates = keywordCandidates(answers.category, answers.serviceArea, answers.reach);
+  if (candidates.length < 2) return { keyword: typed };
+  const volumes = await settle(phraseVolumes(deps.dataforseo, candidates, answers.countries[0]), new Map<string, number>());
+  const picked = pickKeyword(candidates, volumes.value);
+  if (picked.keyword === candidates[0]) return { keyword: picked.keyword };
+  const typedSearches = volumes.value.get(candidates[0]) ?? 0;
+  return {
+    keyword: picked.keyword,
+    keywordNote: `Few people search "${candidates[0]}" (${typedSearches ? `about ${typedSearches} a month` : "too few to measure"}), so we used "${picked.keyword}"${picked.searches ? `, searched about ${picked.searches.toLocaleString("en-US")} times a month` : ""}.`,
+  };
+}
+
 export async function runAssessment(answers: Answers, deps: EngineDeps): Promise<AssessmentResult> {
-  const keyword = primaryKeyword(answers.category, answers.serviceArea, answers.reach);
+  const { keyword, keywordNote } = await chooseKeyword(answers, deps);
   // One set of lookups per country, in parallel; the first country leads.
   const markets = await Promise.all(answers.countries.map((c) => lookupMarket(answers, c, keyword, deps)));
   if (!markets.some((m) => m.ok)) throw new AssessmentUnavailableError([...new Set(markets.flatMap((m) => m.failures))]);
@@ -129,6 +160,7 @@ export async function runAssessment(answers: Answers, deps: EngineDeps): Promise
     reach: answers.reach,
     category: answers.category,
     primaryKeyword: keyword,
+    ...(keywordNote ? { keywordNote } : {}),
     dataSource: deps.dataSource,
     generatedAt: (deps.now?.() ?? new Date()).toISOString(),
     ...strip(main),

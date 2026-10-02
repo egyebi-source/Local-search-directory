@@ -297,3 +297,18 @@ export async function keywordIdeas(t: DataForSeoTransport, seeds: string[], coun
     competition: i.keyword_info?.competition ?? null,
   }));
 }
+
+const phraseItem = z.object({
+  keyword: z.string(),
+  keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional(),
+});
+
+/** Monthly searches for each exact phrase, in one call (phrases with no data are left out). */
+export async function phraseVolumes(t: DataForSeoTransport, phrases: string[], country: Country): Promise<Map<string, number>> {
+  const raw = await liveTask(t, "dataforseo_labs/google/keyword_overview/live", {
+    keywords: phrases.slice(0, 50),
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+  });
+  return new Map(parseItems(raw, phraseItem).map((i) => [i.keyword.toLowerCase(), i.keyword_info?.search_volume ?? 0]));
+}

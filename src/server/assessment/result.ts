@@ -13,6 +13,8 @@ export type AssessmentResult = {
   reach?: "local" | "national";
   category: string;
   primaryKeyword: string;
+  /** Set when we searched a shorter phrase than the one typed, because few people search the typed one. */
+  keywordNote?: string;
   dataSource: "sandbox" | "live";
   generatedAt: string;
   metrics: {
@@ -118,6 +120,7 @@ export type Teaser = {
   serviceArea: string;
   category: string;
   primaryKeyword: string;
+  keywordNote: string | null;
   dataSource: AssessmentResult["dataSource"];
   metrics: AssessmentResult["metrics"];
   insights: Insight[];
@@ -141,6 +144,7 @@ export function toTeaser(r: AssessmentResult): Teaser {
     serviceArea: r.serviceArea,
     category: r.category,
     primaryKeyword: r.primaryKeyword,
+    keywordNote: r.keywordNote ?? null,
     dataSource: r.dataSource,
     metrics: { ...r.metrics },
     insights: r.insights.slice(0, FREE_INSIGHTS).map((i) => ({ title: i.title, detail: i.detail })),
@@ -162,6 +166,38 @@ export function cityFrom(serviceArea: string): string {
 export function primaryKeyword(category: string, serviceArea: string, reach: "local" | "national" = "local"): string {
   const service = category.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60);
   return reach === "national" ? service : `${service} ${cityFrom(serviceArea)}`.trim();
+}
+
+const TRAILING = new Set(["for", "in", "of", "and", "the", "to", "with", "near", "at", "on", "a"]);
+
+/**
+ * Ways people might search for this business, most specific first: the
+ * phrase as typed, then shorter versions ("collision repair buying group",
+ * "collision repair"), each with the city for a local business.
+ */
+export function keywordCandidates(category: string, serviceArea: string, reach: "local" | "national" = "local"): string[] {
+  const words = category.trim().toLowerCase().replace(/[^\p{L}\p{N}&' -]/gu, " ").split(/\s+/).filter(Boolean).slice(0, 10);
+  const city = reach === "national" ? "" : cityFrom(serviceArea);
+  const out: string[] = [];
+  for (let n = words.length; n >= 1; n--) {
+    const head = words.slice(0, n);
+    if (TRAILING.has(head[n - 1])) continue;
+    if (n === 1 && words.length > 1) continue; // a single generic word is too broad
+    const phrase = head.join(" ");
+    out.push(city ? `${phrase} ${city}` : phrase);
+  }
+  return [...new Set(out)].slice(0, 8);
+}
+
+/** Enough searches to say anything useful about ads and rankings. */
+export const MIN_MONTHLY_SEARCHES = 30;
+
+/** The most specific phrase people actually search; the typed phrase if none have data. */
+export function pickKeyword(candidates: string[], volumes: Map<string, number>): { keyword: string; searches: number | null } {
+  const specific = candidates.find((c) => (volumes.get(c) ?? 0) >= MIN_MONTHLY_SEARCHES);
+  if (specific) return { keyword: specific, searches: volumes.get(specific)! };
+  const best = [...candidates].sort((a, b) => (volumes.get(b) ?? 0) - (volumes.get(a) ?? 0))[0];
+  return best && (volumes.get(best) ?? 0) > 0 ? { keyword: best, searches: volumes.get(best)! } : { keyword: candidates[0], searches: null };
 }
 
 /** Page 11 is far closer to page 1 than page 30: weight 1.0 at #11 down to 0.05 at #30. */

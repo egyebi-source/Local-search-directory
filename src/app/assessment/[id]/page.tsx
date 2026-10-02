@@ -37,6 +37,7 @@ export default async function AssessmentPage({ params }: PageProps<"/assessment/
             <div>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{a.title(teaser.domain)}</h1>
               <p className="mt-1 text-slate-600">{a.subtitle(teaser.primaryKeyword)}</p>
+              {teaser.keywordNote ? <p className="mt-1 text-sm text-slate-500">{teaser.keywordNote}</p> : null}
             </div>
             <SampleDataBanner source={teaser.dataSource} />
             {teaser.local ? <LocalTiles l={teaser.local} m={teaser.metrics} /> : <MetricTiles m={teaser.metrics} />}
