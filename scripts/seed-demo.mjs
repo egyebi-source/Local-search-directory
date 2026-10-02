@@ -35,7 +35,18 @@ function series(points, i, k = 0, noisy = true) {
       else v = Math.round(v0 + ((v1 - v0) * (i - d0)) / (d1 - d0));
     } else if (i > d1) v = v1;
   }
-  return v === null || !noisy ? v : Math.max(1, v + wobble(i, k));
+  // Settle the last few days so the end value matches the story on /demo.
+  return v === null || !noisy || i >= 56 ? v : Math.max(1, v + wobble(i, k));
+}
+
+/** Unrounded linear interpolation (for ratings like 4.3 → 4.6). */
+function lerp(points, i) {
+  for (let p = 0; p < points.length - 1; p++) {
+    const [d0, v0] = points[p];
+    const [d1, v1] = points[p + 1];
+    if (i >= d0 && i <= d1) return v0 + ((v1 - v0) * (i - d0)) / (d1 - d0);
+  }
+  return points.at(-1)[1];
 }
 
 // Day 0 = 60 days ago, day 60 = today.
@@ -121,7 +132,7 @@ try {
       rows.push([
         randomUUID(), org, sid, dayStr(i - 60),
         series(s.map, i, k), series(s.org, i, k + 3),
-        Math.round(series(RATING, i, 0, false) * 10) / 10, series(REVIEWS, i, 0, false),
+        Math.round(lerp(RATING, i) * 10) / 10, series(REVIEWS, i, 0, false),
         4.8, 418 + Math.floor(i / 6),
         i === 0 ? "assessment" : "daily",
       ]);

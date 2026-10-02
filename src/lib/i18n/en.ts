@@ -170,6 +170,7 @@ export const en = {
     reviews: "Your reviews",
     rating: "Your rating",
     leaders: "Top 3 average reviews",
+    reviewsChart: "Your Google reviews vs the top 3 in Google Maps",
     notFound: "Not in top 20",
     up: (n: number) => `▲ ${n}`,
     down: (n: number) => `▼ ${n}`,

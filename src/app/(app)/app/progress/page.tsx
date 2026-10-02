@@ -1,3 +1,4 @@
+import { TrendChart, type TrendMarker } from "@/components/charts/trend-chart";
 import { t } from "@/lib/i18n/en";
 import { withCurrentOrg } from "@/server/org/current";
 import { TRACKED_SEARCH_LIMIT } from "@/server/tracking/checks";
@@ -67,7 +68,7 @@ function Comparison({ from, to }: { from: Check | null; to: Check | null }) {
   );
 }
 
-function SearchCard({ s }: { s: SearchProgress }) {
+function SearchCard({ s, markers }: { s: SearchProgress; markers: TrendMarker[] }) {
   const sample = s.history.some((c) => c.dataSource === "sandbox");
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
@@ -81,6 +82,18 @@ function SearchCard({ s }: { s: SearchProgress }) {
         </form>
       </div>
       {sample ? <p className="text-xs text-amber-700 dark:text-amber-400">{p.sample}</p> : null}
+      {s.history.length > 1 ? (
+        <TrendChart
+          title={`Google Maps spot and Google position for "${s.keyword}", by day`}
+          kind="rank"
+          days={s.history.map((c) => c.day)}
+          series={[
+            { name: p.mapSpot, color: "--viz-1", values: s.history.map((c) => c.mapRank) },
+            { name: p.googleSpot, color: "--viz-2", values: s.history.map((c) => c.organicRank) },
+          ]}
+          markers={markers.filter((m) => m.day >= s.history[0].day)}
+        />
+      ) : null}
       {s.history.length ? <Comparison from={s.before} to={s.now} /> : <p className="text-sm text-slate-500">{p.tooEarly}</p>}
     </section>
   );
@@ -90,6 +103,15 @@ export default async function ProgressPage() {
   const data = await withCurrentOrg((tx, ctx) => loadProgress(tx, ctx.orgId));
   const today = new Date().toISOString().slice(0, 10);
   const main = data.searches[0];
+  // Changes are numbered oldest first; the same numbers appear on the charts.
+  const numbered = [...data.changes].sort((a, b) => a.madeOn.localeCompare(b.madeOn));
+  const changeNo = new Map(numbered.map((c, i) => [c.id, i + 1]));
+  // A change logged on a day without a check snaps to the next checked day.
+  const markersFor = (s: SearchProgress): TrendMarker[] =>
+    numbered.flatMap((c) => {
+      const day = s.history.find((h) => h.day >= c.madeOn)?.day;
+      return day ? [{ day, n: changeNo.get(c.id)!, label: c.title }] : [];
+    });
 
   return (
     <div className="flex flex-col gap-8">
@@ -98,10 +120,26 @@ export default async function ProgressPage() {
         <p className="max-w-2xl text-slate-600 dark:text-slate-400">{p.intro}</p>
       </div>
 
+      {main && main.history.length > 1 && main.history.some((c) => c.reviews !== null) ? (
+        <section className="flex flex-col gap-3 rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+          <h2 className="text-lg font-semibold">{p.reviewsChart}</h2>
+          <TrendChart
+            title={p.reviewsChart}
+            kind="count"
+            days={main.history.map((c) => c.day)}
+            series={[
+              { name: p.reviews, color: "--viz-1", values: main.history.map((c) => c.reviews) },
+              { name: p.leaders, color: "--viz-2", values: main.history.map((c) => c.leaderAvgReviews) },
+            ]}
+            markers={markersFor(main)}
+          />
+        </section>
+      ) : null}
+
       {data.searches.length ? (
         <div className="flex flex-col gap-4">
           {data.searches.map((s) => (
-            <SearchCard key={s.id} s={s} />
+            <SearchCard key={s.id} s={s} markers={markersFor(s)} />
           ))}
           <CheckNowForm />
         </div>
@@ -134,7 +172,12 @@ export default async function ProgressPage() {
                 <li key={c.id} className="flex flex-col gap-2 rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium">{c.title}</p>
+                      <p className="font-medium">
+                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ring-1 ring-slate-300 dark:ring-slate-600">
+                          {changeNo.get(c.id)}
+                        </span>
+                        {c.title}
+                      </p>
                       <p className="text-xs text-slate-500">{fmtDay(c.madeOn)}</p>
                       {c.note ? <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{c.note}</p> : null}
                     </div>
