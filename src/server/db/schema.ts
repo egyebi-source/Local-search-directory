@@ -335,3 +335,30 @@ export const siteChanges = pgTable(
   },
   (t) => [index("site_changes_org_idx").on(t.orgId, t.madeOn)],
 );
+
+// --- Global: TorqueRank staff (PRD Module 9) -----------------------------------
+
+// Who may open /admin. The app can only read its own row (RLS); rows are
+// added by the database owner, never through the app.
+export const platformAdmins = pgTable("platform_admins", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+});
+
+// Every admin action, with a reason. Written only by admin_* database
+// functions; the app role has no direct access.
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: id(),
+    adminUserId: uuid("admin_user_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    targetOrgId: uuid("target_org_id"),
+    reason: text("reason").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index("admin_audit_log_created_idx").on(t.createdAt)],
+);
