@@ -8,8 +8,9 @@ async function enter(role: DemoRole, to: string): Promise<never> {
   if (!demoEnabled()) notFound();
   const session = await createDemoSession(role);
   if (!session) redirect("/demo?missing=1");
-  // Same cookie Auth.js uses for database sessions.
-  const secure = (await headers()).get("x-forwarded-proto") === "https" || process.env.NODE_ENV === "production";
+  // Same cookie name Auth.js uses: the "__Secure-" one exactly when the site is served over https.
+  const proto = (await headers()).get("x-forwarded-proto");
+  const secure = proto ? proto === "https" : (process.env.AUTH_URL ?? "").startsWith("https:");
   (await cookies()).set(secure ? "__Secure-authjs.session-token" : "authjs.session-token", session.token, {
     httpOnly: true,
     secure,

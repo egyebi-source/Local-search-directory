@@ -14,11 +14,20 @@ type Props = {
   title: string;
   days: string[];
   series: TrendSeries[];
-  kind: "rank" | "count";
+  kind: "rank" | "count" | "percent";
   markers?: TrendMarker[];
 };
 
 const H = 200;
+
+/** Series key as a tiny SVG line: no inline styles (the site's CSP blocks them). */
+function LineKey({ color, width = 16 }: { color: TrendSeries["color"]; width?: number }) {
+  return (
+    <svg aria-hidden width={width} height={4} className="shrink-0">
+      <rect y={1} width={width} height={2} rx={1} fill={`var(${color})`} />
+    </svg>
+  );
+}
 const PAD = { top: 22, right: 44, bottom: 24, left: 40 };
 const RANK_FLOOR = 20; // we check the top 20
 
@@ -27,6 +36,7 @@ const fmtDay = (d: string, long = false) =>
 
 function fmtValue(kind: Props["kind"], v: number | null) {
   if (v === null) return kind === "rank" ? "Not in top 20" : "—";
+  if (kind === "percent") return `${v.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
   return kind === "rank" ? `#${v}` : v.toLocaleString("en-US");
 }
 
@@ -52,7 +62,7 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
 
   const n = days.length;
   const all = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
-  const [lo, hi] = kind === "rank" ? [1, RANK_FLOOR] : [0, niceMax(Math.max(1, ...all))];
+  const [lo, hi] = kind === "rank" ? [1, RANK_FLOOR] : kind === "percent" ? [0, Math.min(100, niceMax(Math.max(10, ...all)))] : [0, niceMax(Math.max(1, ...all))];
   const plotW = width - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
   const x = (i: number) => PAD.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
@@ -89,16 +99,16 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
   return (
     <div className="viz-root flex flex-col gap-2">
       {series.length > 1 ? (
-        <ul className="flex flex-wrap gap-4 text-xs" style={{ color: "var(--viz-ink-2)" }} aria-label="Legend">
+        <ul className="flex flex-wrap gap-4 text-xs text-slate-600 dark:text-slate-300" aria-label="Legend">
           {series.map((s) => (
             <li key={s.name} className="flex items-center gap-1.5">
-              <span aria-hidden className="inline-block h-0.5 w-4 rounded" style={{ background: `var(${s.color})` }} />
+              <LineKey color={s.color} />
               {s.name}
             </li>
           ))}
         </ul>
       ) : null}
-      <div ref={wrap} className="relative w-full" style={{ touchAction: "pan-y" }}>
+      <div ref={wrap} className="relative w-full touch-pan-y">
         <svg
           width={width}
           height={H}
@@ -107,7 +117,6 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
           aria-describedby={descId}
           tabIndex={0}
           className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-          style={{ background: "var(--viz-surface)" }}
           onPointerMove={(e) => pick(e.clientX)}
           onPointerLeave={() => setHover(null)}
           onFocus={() => setHover(last)}
@@ -119,11 +128,12 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
             e.preventDefault();
           }}
         >
+          <rect width={width} height={H} rx={8} fill="var(--viz-surface)" />
           {ticks.map((t) => (
             <g key={t}>
               <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--viz-grid)" strokeWidth={1} />
               <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--viz-muted)" className="tabular-nums">
-                {kind === "rank" ? (t === RANK_FLOOR ? "20+" : `#${t}`) : t.toLocaleString("en-US")}
+                {kind === "rank" ? (t === RANK_FLOOR ? "20+" : `#${t}`) : kind === "percent" ? `${t}%` : t.toLocaleString("en-US")}
               </text>
             </g>
           ))}
@@ -197,14 +207,19 @@ export function TrendChart({ title, days, series, kind, markers = [] }: Props) {
 
         {hover !== null ? (
           <div
+            ref={(el) => {
+              if (el) {
+                el.style.left = `${tipLeft}px`;
+                el.style.transform = "translateY(-100%)";
+              }
+            }}
             role="status"
             className="pointer-events-none absolute top-0 w-40 rounded-md bg-white px-3 py-2 text-xs shadow-lg ring-1 ring-black/10 dark:bg-slate-900 dark:ring-white/10"
-            style={{ left: tipLeft, transform: "translateY(-100%)" }}
           >
             <p className="mb-1 text-slate-500 dark:text-slate-400">{fmtDay(days[hover], true)}</p>
             {series.map((s) => (
               <p key={s.name} className="flex items-center gap-1.5">
-                <span aria-hidden className="inline-block h-0.5 w-3 rounded" style={{ background: `var(${s.color})` }} />
+                <LineKey color={s.color} width={12} />
                 <strong className="text-slate-900 dark:text-white">{fmtValue(kind, s.values[hover] ?? null)}</strong>
                 <span className="text-slate-500 dark:text-slate-400">{s.name}</span>
               </p>

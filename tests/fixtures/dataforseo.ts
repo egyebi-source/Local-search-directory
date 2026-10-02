@@ -26,6 +26,7 @@ export const serp = envelope(0.002, {
     { type: "paid", rank_group: 3, rank_absolute: 3, domain: "www.rivalautobody.ca", title: "Free Rental Car", description: "Book online today.", url: "https://www.rivalautobody.ca/rental" },
     { type: "paid", rank_group: 4, rank_absolute: 4, domain: "acmecollision.ca", title: "Our own ad", description: "Should not count as a competitor.", url: "https://acmecollision.ca" },
     { type: "local_pack", rank_group: 1, rank_absolute: 5, domain: null, title: "Map" },
+    { type: "ai_overview", rank_group: 1, rank_absolute: 5, references: [{ domain: "www.rivalautobody.ca", url: "x" }, { domain: "acmecollision.ca", url: "y" }] },
     { type: "organic", rank_group: 1, rank_absolute: 6, domain: "www.rivalautobody.ca", title: "Rival", url: "https://www.rivalautobody.ca" },
     { type: "organic", rank_group: 7, rank_absolute: 12, domain: "acmecollision.ca", title: "Acme", url: "https://acmecollision.ca" },
   ],
@@ -67,6 +68,14 @@ export const maps = envelope(0.002, {
   ],
 });
 
+export const overview = envelope(0.0101, {
+  items: [{ metrics: { organic: { pos_1: 2, pos_2_3: 3, pos_4_10: 6, pos_11_20: 9, pos_21_30: 5, pos_31_40: 1, etv: 312.4, count: 26, estimated_paid_traffic_cost: 2950.7 }, paid: { count: 0 } } }],
+});
+
+export const instantPage = envelope(0.000125, {
+  items: [{ url: "https://acmecollision.ca/", onpage_score: 81.5, checks: { no_title: false, no_description: true, no_image_alt: true, is_https: true, something_new: true } }],
+});
+
 /** Fake transport that answers by endpoint and records every request. */
 export function fakeDataForSeo() {
   const calls: { path: string; body: unknown }[] = [];
@@ -75,6 +84,8 @@ export function fakeDataForSeo() {
     if (path.startsWith("serp/google/maps")) return maps;
     if (path.startsWith("serp/")) return serp;
     if (path.includes("ranked_keywords")) return ranked;
+    if (path.includes("domain_rank_overview")) return overview;
+    if (path.includes("instant_pages")) return instantPage;
     if (path.includes("keyword_suggestions")) return suggestions;
     throw new Error(`unexpected path ${path}`);
   };

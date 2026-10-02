@@ -50,10 +50,11 @@ function lerp(points, i) {
 }
 
 // Day 0 = 60 days ago, day 60 = today.
+// ai: [shown, cited from day] (cited null = never)
 const SEARCHES = [
-  { keyword: "collision repair ottawa", map: [[0, 9], [10, 9], [30, 6], [45, 5], [60, 4]], org: [[0, 14], [24, 14], [40, 9], [60, 6]] },
-  { keyword: "auto body shop kanata", map: [[0, null], [22, null], [23, 11], [45, 5], [60, 3]], org: [[0, null], [24, null], [25, 19], [60, 8]] },
-  { keyword: "bumper repair ottawa", map: [[0, 7], [39, 7], [60, 5]], org: [[0, 18], [26, 18], [60, 11]] },
+  { ai: [true, 39], keyword: "collision repair ottawa", map: [[0, 9], [10, 9], [30, 6], [45, 5], [60, 4]], org: [[0, 14], [24, 14], [40, 9], [60, 6]] },
+  { ai: [false, null], keyword: "auto body shop kanata", map: [[0, null], [22, null], [23, 11], [45, 5], [60, 3]], org: [[0, null], [24, null], [25, 19], [60, 8]] },
+  { ai: [true, null], keyword: "bumper repair ottawa", map: [[0, 7], [39, 7], [60, 5]], org: [[0, 18], [26, 18], [60, 11]] },
 ];
 const REVIEWS = [[0, 48], [8, 48], [60, 97]];
 const RATING = [[0, 4.3], [8, 4.3], [60, 4.6]];
@@ -110,8 +111,8 @@ try {
     insightsSource: "rules",
     rescueTargets: [
       { keyword: "collision repair near me", position: 14, monthlySearches: 1900, cpcUsd: 11.4, score: 0 },
-      { keyword: "bumper repair ottawa", position: 18, monthlySearches: 390, cpcUsd: 8.95, score: 0 },
-      { keyword: "auto body shop kanata", position: 29, monthlySearches: 140, cpcUsd: 7.2, score: 0 },
+      { ai: [true, null], keyword: "bumper repair ottawa", position: 18, monthlySearches: 390, cpcUsd: 8.95, score: 0 },
+      { ai: [false, null], keyword: "auto body shop kanata", position: 29, monthlySearches: 140, cpcUsd: 7.2, score: 0 },
     ],
     topKeywords: [
       { keyword: "collision repair ottawa", monthlySearches: 880, cpcUsd: 9.8 },
@@ -135,12 +136,13 @@ try {
         Math.round(lerp(RATING, i) * 10) / 10, series(REVIEWS, i, 0, false),
         4.8, 418 + Math.floor(i / 6),
         i === 0 ? "assessment" : "daily",
+        s.ai[0], s.ai[0] ? s.ai[1] !== null && i >= s.ai[1] : false,
       ]);
     }
     for (const r of rows) {
       await c.query(
-        `INSERT INTO rank_checks (id, org_id, tracked_search_id, day, map_rank, organic_rank, rating, reviews, leader_avg_rating, leader_avg_reviews, source, data_source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'live')`,
+        `INSERT INTO rank_checks (id, org_id, tracked_search_id, day, map_rank, organic_rank, rating, reviews, leader_avg_rating, leader_avg_reviews, source, ai_overview, ai_cited, data_source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'live')`,
         r,
       );
     }
@@ -183,6 +185,49 @@ try {
        changeIdx === null ? null : changeIds[changeIdx],
        changeIdx === null ? null : new Date(Date.now() + (CHANGES[changeIdx][0] - 60) * 86_400_000)],
     );
+  }
+
+  // 9 weekly whole-site snapshots for the SEO dashboard (week 0 = 56 days ago).
+  const POOL = [
+    ["collision repair ottawa", 880, 9.8, 14, 6], ["auto body shop ottawa", 720, 8.1, 9, 4], ["collision repair near me", 1900, 11.4, 14, 9],
+    ["bumper repair ottawa", 390, 8.95, 18, 11], ["auto body shop kanata", 140, 7.2, 29, 8], ["acme collision", 90, 1.1, 1, 1],
+    ["car scratch repair ottawa", 210, 5.4, 12, 7], ["dent repair ottawa", 320, 6.2, 16, 10], ["paintless dent repair ottawa", 170, 6.9, 22, 13],
+    ["auto glass ottawa", 590, 7.7, 41, 33], ["frame straightening ottawa", 50, 9.1, 8, 3], ["insurance claim body shop ottawa", 70, 10.2, 11, 5],
+    ["hail damage repair ottawa", 110, 8.4, 26, 15], ["car paint shop ottawa", 260, 6.6, 19, 12], ["rust repair ottawa", 140, 5.9, 15, 9],
+    ["bumper replacement cost", 2400, 2.1, 58, 44], ["collision repair kanata", 90, 8.8, 35, 4], ["body shop orleans", 110, 7.4, 47, 28],
+    ["headlight restoration ottawa", 90, 4.2, 9, 6], ["fender bender repair", 480, 5.1, 63, 39], ["auto body estimate", 720, 4.8, 71, 52],
+    ["car door dent repair", 390, 4.4, 38, 21], ["windshield chip repair ottawa", 170, 6.1, 52, 41], ["best body shop ottawa", 140, 12.1, 21, 8],
+  ];
+  const lerpN = (a, b, w) => Math.round(a + (b - a) * w);
+  for (let week = 0; week <= 8; week++) {
+    const w = week / 8;
+    // Some searches only start ranking partway through (they count as "new").
+    const keywords = POOL.filter((k, idx) => !(idx >= 16 && week < 3) && !(idx === 22 && week < 6)).map(([keyword, searches, cpc, from, to]) => {
+      const position = Math.max(1, lerpN(from, to, w) + (week % 2 && from > 3 ? 1 : 0));
+      const share = position <= 10 ? [0.28, 0.15, 0.1, 0.07, 0.05, 0.04, 0.03, 0.03, 0.025, 0.02][position - 1] : position <= 20 ? 0.01 : 0.002;
+      return { keyword, position, searches, cpcUsd: cpc, url: `https://${DOMAIN}/`, trafficEst: Math.round(searches * share * 10) / 10 };
+    });
+    const pages = [
+      { url: `https://${DOMAIN}/`, failed: week < 4 ? ["no_image_alt", "high_loading_time", "no_description"] : ["no_image_alt", "high_loading_time"] },
+      { url: `https://${DOMAIN}/collision-repair`, failed: week < 6 ? ["title_too_long", "no_image_alt", "no_h1_tag"] : ["title_too_long", "no_image_alt"] },
+      { url: `https://${DOMAIN}/kanata`, failed: week < 3 ? ["no_description", "low_content_rate"] : ["no_description"] },
+      { url: `https://${DOMAIN}/contact`, failed: ["no_image_alt"] },
+      { url: `https://${DOMAIN}/about`, failed: [] },
+    ].map((p) => ({ ...p, score: Math.round(100 - p.failed.length * 7 - (week < 4 ? 6 : 0)) }));
+    const data = {
+      overview: {
+        trafficEst: lerpN(182, 418, w) + (week % 3 === 1 ? 9 : 0),
+        keywords: lerpN(74, 121, w),
+        trafficValueUsd: lerpN(1710, 4080, w),
+        paidKeywords: 0,
+        buckets: { top3: lerpN(4, 9, w), top10: lerpN(11, 24, w), top20: lerpN(22, 41, w), top100: lerpN(74, 121, w) },
+      },
+      keywords,
+      audit: { score: Math.round(pages.reduce((a, p) => a + p.score, 0) / pages.length), pages },
+    };
+    await c.query(`INSERT INTO seo_snapshots (id, org_id, taken_on, data_source, data) VALUES ($1,$2,$3,'live',$4)`, [
+      randomUUID(), org, dayStr(week * 7 - 56), data,
+    ]);
   }
 
   // A sample campaign of fictional shops (one already claimed: the demo shop).

@@ -99,6 +99,13 @@
       "when": 1790906655307,
       "tag": "0013_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790907302196,
+      "tag": "0014_seo_dashboard",
+      "breakpoints": true
     }
   ]
 }

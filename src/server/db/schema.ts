@@ -311,6 +311,9 @@ export const rankChecks = pgTable(
     reviews: integer("reviews"),
     leaderAvgRating: real("leader_avg_rating"),
     leaderAvgReviews: integer("leader_avg_reviews"),
+    // Google's AI answer: shown for this search? does it cite the site?
+    aiOverview: boolean("ai_overview"),
+    aiCited: boolean("ai_cited"),
     source: text("source").$type<"assessment" | "daily" | "manual">().notNull(),
     dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
     createdAt: createdAt(),
@@ -479,3 +482,21 @@ export const pricing = pgTable("pricing", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
 });
+
+// Weekly whole-site SEO snapshot (dashboard): estimated traffic, keywords
+// by position band, the keyword list (for new/lost), and a site check.
+// Append-only for the app, like rank_checks.
+export const seoSnapshots = pgTable(
+  "seo_snapshots",
+  {
+    id: id(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    takenOn: date("taken_on").notNull(),
+    dataSource: text("data_source").$type<"sandbox" | "live">().notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("seo_snapshots_org_day_idx").on(t.orgId, t.takenOn)],
+);

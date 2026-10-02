@@ -11,6 +11,8 @@ export type Check = {
   rating: number | null;
   reviews: number | null;
   leaderAvgReviews: number | null;
+  aiOverview: boolean | null;
+  aiCited: boolean | null;
   dataSource: "sandbox" | "live";
 };
 
@@ -74,6 +76,8 @@ export async function loadProgress(tx: Tx, orgId: string): Promise<{ searches: S
           rating: r.rating,
           reviews: r.reviews,
           leaderAvgReviews: r.leaderAvgReviews,
+          aiOverview: r.aiOverview,
+          aiCited: r.aiCited,
           dataSource: r.dataSource,
         }));
       return { ...s, before: history[0] ?? null, now: history.at(-1) ?? null, history };

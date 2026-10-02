@@ -49,7 +49,7 @@ async function lookupMarket(answers: Answers, country: Country, keyword: string,
   // Google Maps only matters for businesses serving a local area.
   const local = answers.reach !== "national";
   const [serp, ranked, values, maps] = await Promise.all([
-    settle(localSerp(deps.dataforseo, keyword, country), { ads: [], organic: [] }),
+    settle(localSerp(deps.dataforseo, keyword, country), { ads: [], organic: [], aiOverview: { shown: false, citedDomains: [] } }),
     settle(pageTwoKeywords(deps.dataforseo, answers.website, country), []),
     settle(keywordValues(deps.dataforseo, keyword, country), []),
     local ? settle(mapsRanking(deps.dataforseo, keyword, country), []) : Promise.resolve({ value: [], ok: false, detail: undefined }),

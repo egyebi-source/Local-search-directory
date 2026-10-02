@@ -35,13 +35,15 @@ const serpItem = z.object({
   title: str,
   description: str,
   rank_group: num,
+  // Google's AI answer ("AI Overview") lists the sites it draws from.
+  references: z.array(z.object({ domain: str }).passthrough()).nullable().optional(),
 });
 
 export async function localSerp(
   t: DataForSeoTransport,
   keyword: string,
   country: Country,
-): Promise<{ ads: PaidAd[]; organic: OrganicHit[] }> {
+): Promise<{ ads: PaidAd[]; organic: OrganicHit[]; aiOverview: { shown: boolean; citedDomains: string[] } }> {
   const raw = await liveTask(t, "serp/google/organic/live/advanced", {
     keyword,
     location_code: LOCATION_CODE[country],
@@ -56,7 +58,9 @@ export async function localSerp(
   const organic = items
     .filter((i) => i.type === "organic" && i.domain && i.rank_group)
     .map((i) => ({ domain: i.domain!.toLowerCase(), position: i.rank_group! }));
-  return { ads, organic };
+  const ai = items.filter((i) => i.type === "ai_overview");
+  const citedDomains = ai.flatMap((i) => (i.references ?? []).flatMap((r) => (r.domain ? [r.domain.toLowerCase()] : [])));
+  return { ads, organic, aiOverview: { shown: ai.length > 0, citedDomains } };
 }
 
 const rankedItem = z.object({
@@ -153,4 +157,105 @@ export async function mapsRanking(t: DataForSeoTransport, keyword: string, count
       category: i.category ? i.category.slice(0, 80) : null,
     }))
     .sort((a, b) => a.rank - b.rank);
+}
+
+// --- Whole-site numbers for the SEO dashboard (weekly) ---------------------------
+
+export type DomainOverview = {
+  trafficEst: number;
+  keywords: number;
+  trafficValueUsd: number;
+  paidKeywords: number;
+  buckets: { top3: number; top10: number; top20: number; top100: number };
+};
+
+const posCounts = z
+  .object({
+    pos_1: num, pos_2_3: num, pos_4_10: num, pos_11_20: num, pos_21_30: num, pos_31_40: num, pos_41_50: num,
+    pos_51_60: num, pos_61_70: num, pos_71_80: num, pos_81_90: num, pos_91_100: num,
+    etv: num, count: num, estimated_paid_traffic_cost: num,
+  })
+  .nullable()
+  .optional();
+const overviewItem = z.object({ metrics: z.object({ organic: posCounts, paid: z.object({ count: num }).nullable().optional() }) });
+
+/** Estimated Google traffic and how many searches the site ranks for, by position band. */
+export async function domainOverview(t: DataForSeoTransport, domain: string, country: Country): Promise<DomainOverview | null> {
+  const raw = await liveTask(t, "dataforseo_labs/google/domain_rank_overview/live", {
+    target: domain,
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+  });
+  const [item] = parseItems(raw, overviewItem);
+  const o = item?.metrics.organic;
+  if (!o) return null;
+  const n = (v: number | null | undefined) => v ?? 0;
+  const top3 = n(o.pos_1) + n(o.pos_2_3);
+  const top10 = top3 + n(o.pos_4_10);
+  const top20 = top10 + n(o.pos_11_20);
+  const top100 = top20 + n(o.pos_21_30) + n(o.pos_31_40) + n(o.pos_41_50) + n(o.pos_51_60) + n(o.pos_61_70) + n(o.pos_71_80) + n(o.pos_81_90) + n(o.pos_91_100);
+  return {
+    trafficEst: Math.round(n(o.etv)),
+    keywords: n(o.count),
+    trafficValueUsd: Math.round(n(o.estimated_paid_traffic_cost)),
+    paidKeywords: n(item.metrics.paid?.count),
+    buckets: { top3, top10, top20, top100 },
+  };
+}
+
+export type SiteKeyword = { keyword: string; position: number; searches: number; cpcUsd: number; url: string | null; trafficEst: number };
+
+const siteKeywordItem = z.object({
+  keyword_data: z.object({ keyword: z.string(), keyword_info: z.object({ search_volume: num, cpc: num }).nullable().optional() }),
+  ranked_serp_element: z.object({ serp_item: z.object({ rank_group: num, url: str, etv: num }).nullable().optional() }),
+});
+
+/** The searches a site ranks for (top 100), most traffic first. */
+export async function siteKeywords(t: DataForSeoTransport, domain: string, country: Country, limit = 200): Promise<SiteKeyword[]> {
+  const raw = await liveTask(t, "dataforseo_labs/google/ranked_keywords/live", {
+    target: domain,
+    location_code: LOCATION_CODE[country],
+    language_code: "en",
+    item_types: ["organic"],
+    limit,
+    order_by: ["ranked_serp_element.serp_item.etv,desc"],
+  });
+  return parseItems(raw, siteKeywordItem).flatMap((i) => {
+    const pos = i.ranked_serp_element.serp_item?.rank_group;
+    if (!pos || pos > 100) return [];
+    return [
+      {
+        keyword: i.keyword_data.keyword.slice(0, 120),
+        position: pos,
+        searches: i.keyword_data.keyword_info?.search_volume ?? 0,
+        cpcUsd: i.keyword_data.keyword_info?.cpc ?? 0,
+        url: i.ranked_serp_element.serp_item?.url ?? null,
+        trafficEst: Math.round((i.ranked_serp_element.serp_item?.etv ?? 0) * 10) / 10,
+      },
+    ];
+  });
+}
+
+export type PageAudit = { url: string; score: number | null; failed: string[] };
+
+const pageItem = z.object({
+  url: str,
+  onpage_score: num,
+  checks: z.record(z.string(), z.boolean().nullable()).nullable().optional(),
+});
+
+/** Checks that are problems when true (DataForSEO on-page "checks"). */
+export const BAD_CHECKS = [
+  "no_title", "title_too_long", "title_too_short", "no_description", "no_h1_tag", "duplicate_title_tag",
+  "low_content_rate", "high_loading_time", "has_render_blocking_resources", "is_broken", "no_image_alt",
+  "no_favicon", "is_http", "large_page_size", "has_meta_refresh_redirect", "no_doctype",
+] as const;
+
+/** One page checked live (title, description, headings, speed, images...). */
+export async function auditPage(t: DataForSeoTransport, url: string): Promise<PageAudit | null> {
+  const raw = await liveTask(t, "on_page/instant_pages", { url, enable_javascript: false });
+  const [item] = parseItems(raw, pageItem);
+  if (!item) return null;
+  const checks = item.checks ?? {};
+  return { url, score: item.onpage_score ?? null, failed: BAD_CHECKS.filter((c) => checks[c] === true) };
 }

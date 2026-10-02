@@ -27,7 +27,7 @@ const today = sql`(now() AT TIME ZONE 'UTC')::date`;
 
 export type CheckValues = Pick<
   typeof rankChecks.$inferInsert,
-  "mapRank" | "organicRank" | "rating" | "reviews" | "leaderAvgRating" | "leaderAvgReviews"
+  "mapRank" | "organicRank" | "rating" | "reviews" | "leaderAvgRating" | "leaderAvgReviews" | "aiOverview" | "aiCited"
 >;
 
 /** Start tracking a search with an existing measurement as its dated "before". */
@@ -107,6 +107,7 @@ export async function lookupSearch(
     return null;
   }
   const organic = serp.status === "fulfilled" ? serp.value.organic : [];
+  const ai = serp.status === "fulfilled" ? serp.value.aiOverview : null;
   const own = organic.find((o) => isOwnDomain(o.domain, ownDomain));
   const local = maps.status === "fulfilled" ? localVisibility(keyword, maps.value, organic, ownDomain) : null;
   return {
@@ -116,6 +117,8 @@ export async function lookupSearch(
     reviews: local?.you?.reviews ?? null,
     leaderAvgRating: local?.leaderAvgRating ?? null,
     leaderAvgReviews: local?.leaderAvgReviews ?? null,
+    aiOverview: ai?.shown ?? null,
+    aiCited: ai ? (ai.shown ? ai.citedDomains.some((d) => isOwnDomain(d, ownDomain)) : false) : null,
   };
 }
 

@@ -55,7 +55,7 @@ describe("progress math", () => {
   });
   it("the check in effect on a date is the latest one on or before it", () => {
     const h = ["2026-09-01", "2026-09-05", "2026-09-10"].map((day) => ({
-      day, mapRank: 1, organicRank: 1, rating: null, reviews: null, leaderAvgReviews: null, dataSource: "live" as const,
+      day, mapRank: 1, organicRank: 1, rating: null, reviews: null, leaderAvgReviews: null, aiOverview: null, aiCited: null, dataSource: "live" as const,
     }));
     expect(checkOn(h, "2026-09-07")?.day).toBe("2026-09-05");
     expect(checkOn(h, "2026-08-01")).toBeNull();
