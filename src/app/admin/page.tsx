@@ -3,6 +3,7 @@ import Link from "next/link";
 import { accessState } from "@/server/billing/access";
 import { adminAuditRecent, adminCustomers, adminOverview } from "@/server/admin/admin";
 import { requireAdmin } from "@/server/admin/guard";
+import { isDemoEmail } from "@/server/demo/demo";
 import type { PlanStatus } from "@/server/db/schema";
 import { ExtendTrialForm } from "./extend-form";
 
@@ -46,6 +47,14 @@ export default async function AdminPage() {
         </nav>
       </header>
 
+      {isDemoEmail(admin.email) ? (
+        <p className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
+          Demo admin: you&apos;re seeing the preview database, including the fictional demo shop and campaign.{" "}
+          <Link href="/demo" className="underline">
+            Back to the demo menu
+          </Link>
+        </p>
+      ) : null}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Funnel</h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">

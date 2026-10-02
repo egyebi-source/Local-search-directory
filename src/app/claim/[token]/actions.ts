@@ -23,6 +23,7 @@ export async function startClaimAction(_prev: ClaimState, form: FormData): Promi
   const claim = await lookupClaim(token);
   if (!claim) return { error: "This link isn't valid anymore." };
   if (claim.status === "claimed") return { error: "This business has already been claimed. Sign in with the email used to claim it." };
+  if (claim.domain.endsWith(".test")) return { error: "Demo businesses can't be claimed." };
   if (!emailMatchesDomain(email.data, claim.domain)) {
     return { error: `To protect ${claim.businessName}, use an email address ending in @${claim.domain}.` };
   }

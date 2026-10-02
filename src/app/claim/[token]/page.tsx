@@ -82,7 +82,14 @@ export default async function ClaimPage({ params }: PageProps<"/claim/[token]">)
                         We&apos;ll track your Google Maps spot, ranking and reviews every day, show you the businesses ahead of you, and measure what
                         each change you make actually does.
                       </p>
-                      <ClaimForm token={token} domain={claim.domain} />
+                      {claim.domain.endsWith(".test") ? (
+                        <p className="rounded-lg bg-sky-900 px-4 py-3 text-sm text-sky-100">
+                          Demo: this is a fictional business, so claiming is turned off. A real shop would enter an email at its own website
+                          here, get a sign-in link, and land on its dashboard with this report as its &ldquo;before&rdquo;.
+                        </p>
+                      ) : (
+                        <ClaimForm token={token} domain={claim.domain} />
+                      )}
                     </>
                   )}
                 </section>
